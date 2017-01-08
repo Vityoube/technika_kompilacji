@@ -1,0 +1,25 @@
+compile : main.o init.o emitter.o lexer.o parser.o  symbol.o error.o 
+
+main.o : main.c global.h
+	cc -c main.c
+
+error.o: error.c global.h
+	cc -c error.c
+
+emmiter.o: emitter.c global.h
+	cc -c  emitter.c
+
+lexer.o: lexer.c global.h
+	cc -c lexer.c
+
+init.o: init.c global.h
+	cc -c init.c
+
+symbol.o: symbol.c global.h
+	cc -c symbol.c
+
+parser.o: parser.c global.h
+	cc -c parser.c
+
+clean:
+	rm compile main.o init.o emitter.o lexer.o parser.o  symbol.o error.o
