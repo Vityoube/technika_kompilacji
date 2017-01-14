@@ -2,7 +2,6 @@
 %option outfile="lexer.c"
 %{
     #include "global.h"
-    #include "parser.h"
 %}
 %%
 %{
@@ -14,27 +13,29 @@ int p;
 
 [0-9]([0-9])*  {
                   printf("integer value: %d",yytext);
-                  sscanf(yytext,"%d",&yylval.integer);
+                  sscanf(yytext,"%d",&yylval.number.integer);
+                  yylval.number.type=INT;
                   return NUM;
                 }
 
 [0-9]([0-9])*('.'[0-9]([0-9])*)?('E'('+'|'-'|'')[0-9]([0-9])*)? {
                                                                   printf("real value : %d",yytext);
-                                                                  sscanf(yytext,"%d",&yylval.real);
+                                                                  sscanf(yytext,"%d",&yylval.number.real);
+                                                                  yylval.number.type=DOUBLE;
                                                                   return NUM;
                                                                 }
 
 [A-Za-z]([0-9A-Za-z])* {
                           if (yyleng>BSIZE)
                             error ("compiler error");
-                          p=lookup(yytext);
+                          p=lookup(yytext,KEYWORD);
                           if (p==0){
                             sscanf(yytext,"%s",&yylval.string);
                             return ID;
                           }
-                          yylval.integer=keywords[p].token;
-                          yylval.string=keywords[p].name;
-                          return keywords[p].token;
+                          yylval.token=entries_list[p].token;
+                          yylval.string=entries_list[p].name;
+                          return entries_list[p].token;
                         }
 
 
@@ -45,14 +46,14 @@ int p;
 .       {
           if (yyleng>BSIZE)
             error ("compiler error");
-          p=lookup(yytext);
+          p=lookup(yytext,KEYWORD);
           if (p==0){
-            yylval.integer=NONE;
+            yylval.token=NONE;
             return yytext[yyleng-1];
           }
-          yylval.integer=keywords[p].token;
-          yylval.string=keywords[p].name;
-          return keywords[p].token;
+          yylval.token=entries_list[p].token;
+          yylval.string=entries_list[p].name;
+          return entries_list[p].token;
         }
 %%
 
@@ -61,10 +62,4 @@ int yywrap(){
   return -1;
 }
 
-FILE* open_pascal_file(char * filename){
-  yyin=fopen(filename, "r");
-}
 
-void close_pascal_file(){
-  fclose(yyin);
-}

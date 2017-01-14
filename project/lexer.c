@@ -498,8 +498,7 @@ char *yytext_ptr;
 #line 1 "lexer.l"
 #line 4 "lexer.l"
     #include "global.h"
-    #include "parser.h"
-#line 503 "lexer.c"
+#line 502 "lexer.c"
 
 #define INITIAL 0
 
@@ -717,12 +716,12 @@ YY_DECL
 		}
 
 	{
-#line 7 "lexer.l"
+#line 6 "lexer.l"
 
 
 int p;
 
-#line 726 "lexer.c"
+#line 725 "lexer.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -791,26 +790,27 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 11 "lexer.l"
+#line 10 "lexer.l"
 {}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 12 "lexer.l"
+#line 11 "lexer.l"
 
 	YY_BREAK
 case 3:
 /* rule 3 can match eol */
 YY_RULE_SETUP
-#line 13 "lexer.l"
+#line 12 "lexer.l"
 {}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 15 "lexer.l"
+#line 14 "lexer.l"
 {
                   printf("integer value: %d",yytext);
-                  sscanf(yytext,"%d",&yylval.integer);
+                  sscanf(yytext,"%d",&yylval.number.integer);
+                  yylval.number.type=INT;
                   return NUM;
                 }
 	YY_BREAK
@@ -819,54 +819,55 @@ YY_RULE_SETUP
 #line 21 "lexer.l"
 {
                                                                   printf("real value : %d",yytext);
-                                                                  sscanf(yytext,"%d",&yylval.real);
+                                                                  sscanf(yytext,"%d",&yylval.number.real);
+                                                                  yylval.number.type=DOUBLE;
                                                                   return NUM;
                                                                 }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 27 "lexer.l"
+#line 28 "lexer.l"
 {
                           if (yyleng>BSIZE)
                             error ("compiler error");
-                          p=lookup(yytext);
+                          p=lookup(yytext,KEYWORD);
                           if (p==0){
                             sscanf(yytext,"%s",&yylval.string);
                             return ID;
                           }
-                          yylval.integer=keywords[p].token;
-                          yylval.string=keywords[p].name;
-                          return keywords[p].token;
+                          yylval.token=entries_list[p].token;
+                          yylval.string=entries_list[p].name;
+                          return entries_list[p].token;
                         }
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
-#line 41 "lexer.l"
+#line 42 "lexer.l"
 {
           return DONE;
         }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 45 "lexer.l"
+#line 46 "lexer.l"
 {
           if (yyleng>BSIZE)
             error ("compiler error");
-          p=lookup(yytext);
+          p=lookup(yytext,KEYWORD);
           if (p==0){
-            yylval.integer=NONE;
+            yylval.token=NONE;
             return yytext[yyleng-1];
           }
-          yylval.integer=keywords[p].token;
-          yylval.string=keywords[p].name;
-          return keywords[p].token;
+          yylval.token=entries_list[p].token;
+          yylval.string=entries_list[p].name;
+          return entries_list[p].token;
         }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 57 "lexer.l"
+#line 58 "lexer.l"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 870 "lexer.c"
+#line 871 "lexer.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -1877,7 +1878,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 57 "lexer.l"
+#line 58 "lexer.l"
 
 
 
@@ -1886,11 +1887,5 @@ int yywrap(){
   return -1;
 }
 
-FILE* open_pascal_file(char * filename){
-  yyin=fopen(filename, "r");
-}
 
-void close_pascal_file(){
-  fclose(yyin);
-}
 

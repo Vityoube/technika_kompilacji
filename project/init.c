@@ -1,5 +1,4 @@
 #include "global.h"
-#include "parser.h"
 
 struct entry keywords_dictionary[]={
   {"if", IF},
@@ -28,5 +27,5 @@ struct entry keywords_dictionary[]={
 void init(){
   struct entry *p;
   for (p=keywords_dictionary;p->token;p++)
-    insert(p->name,p->token);
+    insert(p->name,p->token,KEYWORD);
 }

@@ -1,23 +1,33 @@
 %defines "parser.h"
 
-%union {
-  int integer;
-  double real;
-  char * string;
+%code requires{
+  #include "symbol.h" 
+  #include <stdio.h>
+  #include <stdlib.h>
+ 
+  FILE* yyin;
+  FILE* yyout;
+  struct Number {
+  	enum { INT, DOUBLE } type;
+  	union {
+  		double real;
+  		int integer;
+  	}
+  };
 }
-
-%{
-  #include "global.h"
-  #include <glib.h>
-  extern void print_assembly(FILE *, int, YYSTYPE);
-  extern char* open_assembly_file();
-  #define YYPRINT (File, Type, Value) print_assembly(File, Type, Value);
-  extern int canWriteToSymtable=1;
-
-%}
-%token <integer> NONE;
-%token <integer> DONE 0;
-%token <integer> NUM;
+%union {
+	  struct Number number;
+	  int token;
+	  char * string;
+	  char * type;
+	  GPtrArray * identifiers;	
+	  struct entry identifier;
+	  struct variable variable_identifier;
+	  int index;
+ }
+%token NONE;
+%token DONE 0;
+%token <number> NUM;
 %token <string> ID;
 %token <string> IF "if";
 %token <string> THEN "then";
@@ -28,9 +38,9 @@
 %token <string> END "end";
 %token <string> VAR "var";
 %token <string> PROGRAM "program";
-%token <string>  FUNCTION "function";
-%token <string> PROCEDURE "procedure";
-%token <string> ARRAY "array";
+%token <string>  FUN "function";
+%token <string> PROC "procedure";
+%token <string> ARR "array";
 %token <string> OF "of";
 %token <string> INTEGER "integer";
 %token <string> REAL "real";
@@ -41,24 +51,39 @@
 %token <string> MULOP;
 %token <string> RELOP;
 %token <string> '(' ')' ';' '.' '[' ']' ':' '\n'
+%token VARIABLE
+%token FUNCTION
+%token PROCEDURE
+%token ARRAY
+%token KEYWORD
+%type <entry> variable
+%type <procedure> procedure_statement
+%type <number> expression
+%type <identifiers> identifier_list
+%{
+	identifier_list=g_ptr_array_new();
+%}
 
 %%
 
+
 program: PROGRAM ID '(' identifier_list ')' ';' declarations subprogram_declarations compound_statement '.'   {
-                                                                                                                        print_assembly(yyin,DONE,yylval);
-                                                                                                                        YYACCEPT;
-                                                                                                                    }
+                                                                                                                    print_assembly(yyin,DONE,yylval);
+                                                                                                                    YYACCEPT;
+                                                                                                                }
 
 ;
 
-identifier_list: ID
-                | identifier_list ',' ID
+identifier_list: ID	{ g_ptr_array_add($$,$1); }
+                | identifier_list ',' ID	{ g_ptr_array_add($$,$3); }
 ;
 declarations:
                 | declarations VAR identifier_list ':' type ';'
 ;
-type: standard_type
-      | ARRAY '[' NUM ".." NUM ']' OF standard_type
+type: standard_type	{
+						int data_type_index=insert_data_type($1);
+					}
+      | ARR '[' NUM ".." NUM ']' OF standard_type
 ;
 
 standard_type: INTEGER
@@ -77,8 +102,8 @@ subprogram_declaration: subprogram_head
 
 ;
 
-subprogram_head: FUNCTION ID arguments ':' standard_type ';'
-                | PROCEDURE ID arguments ';' '\n'
+subprogram_head: FUN ID arguments ':' standard_type ';'
+                | PROC ID arguments ';' '\n'
 
 ;
 
@@ -104,7 +129,21 @@ statement_list: statement
 
 ;
 
-statement: variable ASSIGNOP expression
+statement: variable ASSIGNOP expression		{ 
+												int variable_index=find_variable($1);
+												if (strcmp(variables[variable_index].type,"integer")==0)
+													if (strcmp(variables[variable_index].type,yylval.type)==0)
+														variables[variable_index].intval=$3;
+													else 
+														variables[variable_index].intval=(int)$3;
+												else if (strcmp(variables[variable_index].type,"real")==0)
+													if (strcmp(variables[variable_index].type,yylval.type)==0)
+														variables[variable_index].realval=$3;
+													else 
+														variables[variable_index].realval=(double)$3;
+												print_assembly(yyin,ASSIGNOP,yylval.number.type);
+											}
+;											
           | procedure_statement
           | compound_statement
           | IF expression THEN statement ELSE statement
@@ -112,13 +151,24 @@ statement: variable ASSIGNOP expression
 
 ;
 
-variable: ID
-          | ID '[' expression ']'
-
+variable: ID	{ 
+					int variable_index=find_variable($1);
+					$$=variable_index;
+				}
+          | ID '[' expression ']'	{
+          								int variable_index=find_variable($1);
+										$$=variable_index;
+									}
 ;
 
-procedure_statement: ID
-                     | ID '(' expression_list ')'
+procedure_statement: ID	{ 
+							int procedure_index=find_procedure($1);
+							$$=procedures_list[procedure_index];
+						}
+                     | ID '(' expression_list ')' { 
+													int procedure_index=find_procedure($1);
+													$$=procedures_list[procedure_index];
+												  }
 
 ;
 
@@ -144,13 +194,18 @@ term: factor
 ;
 
 factor: variable
-        |  ID '(' expression_list ')'  {
-                print_assembly(yyin,ID,yylval);
-            }
-        | NUM {
-                /*print_assembly(yyin,ID,yylval);*/
-            }
+        |  ID '(' expression_list ')'  
+                
+        | NUM 
         | '(' expression ')'
         | NOT factor
 ;
 %%
+
+FILE* open_pascal_file(char * filename){
+  yyin=fopen(filename, "r");
+}
+
+void close_pascal_file(){
+  fclose(yyin);
+}

@@ -1,7 +1,7 @@
 #include "global.h"
-#include "parser.h"
 
-void print_assembly(FILE* output_file, int token_type, YYSTYPE token_value){
+
+void print_assembly(FILE* output_file, int token_type, YYSTYPE type){
   int fd;
   char path[255];
   fd=fileno(yyin);
@@ -13,16 +13,10 @@ void print_assembly(FILE* output_file, int token_type, YYSTYPE token_value){
   memset(assembly_file, 0, sizeof(assembly_file));
   strncpy(assembly_file,filename,strlen(filename)-4);
   strcat(assembly_file,".asm");
-  FILE* output=fopen(assembly_file,"ab+");
+  FILE* output=fopen(assembly_file,"wb");
   if (token_type==NUM){
-    if (token_value.real)
-      fprintf(output,"%d",token_value.real);
-    else if (token_value.integer)
-      fprintf(output,"%d",token_value.integer);
-  } else if (token_type==ID){
-    fprintf(output,"%s",token_value.string);
-  }
-  else {
-    fprintf(output,"%s","Hello world!");
+
+  }else if (token_type==DONE){
+    fprintf(output,"%s","\texit\n");
   }
 }

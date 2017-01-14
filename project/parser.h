@@ -39,6 +39,24 @@
 #if YYDEBUG
 extern int yydebug;
 #endif
+/* "%code requires" blocks.  */
+#line 3 "parser.y" /* yacc.c:1909  */
+
+  #include "symbol.h" 
+  #include <stdio.h>
+  #include <stdlib.h>
+ 
+  FILE* yyin;
+  FILE* yyout;
+  struct Number {
+  	enum { INT, DOUBLE } type;
+  	union {
+  		double real;
+  		int integer;
+  	}
+  };
+
+#line 60 "parser.h" /* yacc.c:1909  */
 
 /* Token type.  */
 #ifndef YYTOKENTYPE
@@ -58,9 +76,9 @@ extern int yydebug;
     END = 267,
     VAR = 268,
     PROGRAM = 269,
-    FUNCTION = 270,
-    PROCEDURE = 271,
-    ARRAY = 272,
+    FUN = 270,
+    PROC = 271,
+    ARR = 272,
     OF = 273,
     INTEGER = 274,
     REAL = 275,
@@ -69,7 +87,12 @@ extern int yydebug;
     SIGN = 278,
     ASSIGNOP = 279,
     MULOP = 280,
-    RELOP = 281
+    RELOP = 281,
+    VARIABLE = 282,
+    FUNCTION = 283,
+    PROCEDURE = 284,
+    ARRAY = 285,
+    KEYWORD = 286
   };
 #endif
 
@@ -78,13 +101,17 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 3 "parser.y" /* yacc.c:1909  */
+#line 18 "parser.y" /* yacc.c:1909  */
 
-  int integer;
-  double real;
-  char * string;
+	  struct Number number;
+	  int token;
+	  char * string;
+	  char * type;
+	  GArray * identifiers;	
+	  struct variable variable;  
+ 
 
-#line 88 "parser.h" /* yacc.c:1909  */
+#line 115 "parser.h" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;
