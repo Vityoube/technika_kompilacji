@@ -1,7 +1,6 @@
 %option nodefault
-%option outfile="lexer.c"
 %{
-    #include "global.h"
+    #include "parser.hpp"
 %}
 %%
 %{
@@ -14,14 +13,14 @@ int p;
 [0-9]([0-9])*  {
                   printf("integer value: %d",yytext);
                   sscanf(yytext,"%d",&yylval.number.integer);
-                  yylval.number.type=INT;
+                  yylval.number.type=(Number.type)0;
                   return NUM;
                 }
 
 [0-9]([0-9])*('.'[0-9]([0-9])*)?('E'('+'|'-'|'')[0-9]([0-9])*)? {
                                                                   printf("real value : %d",yytext);
                                                                   sscanf(yytext,"%d",&yylval.number.real);
-                                                                  yylval.number.type=DOUBLE;
+                                                                  yylval.number.type=(Number.type)1;
                                                                   return NUM;
                                                                 }
 
@@ -33,9 +32,9 @@ int p;
                             sscanf(yytext,"%s",&yylval.string);
                             return ID;
                           }
-                          yylval.token=entries_list[p].token;
-                          yylval.string=entries_list[p].name;
-                          return entries_list[p].token;
+                          yylval.token=entries_list.at(p).token;
+                          yylval.string=entries_list.at(p).name;
+                          return entries_list.at(p).token;
                         }
 
 
@@ -51,9 +50,9 @@ int p;
             yylval.token=NONE;
             return yytext[yyleng-1];
           }
-          yylval.token=entries_list[p].token;
-          yylval.string=entries_list[p].name;
-          return entries_list[p].token;
+          yylval.token=entries_list.at(p).token;
+                          yylval.string=entries_list.at(p).name;
+                          return entries_list.at(p).token;
         }
 %%
 

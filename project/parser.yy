@@ -1,30 +1,41 @@
-%defines "parser.h"
 
 %code requires{
-  #include "symbol.h" 
   #include <stdio.h>
   #include <stdlib.h>
- 
-  FILE* yyin;
-  FILE* yyout;
+  #include <unistd.h>
+  #include <vector>
+  #include <string.h>
+  #include "symbol_table.h" 
+  extern FILE* yyin;
+  extern FILE* yyout;
   struct Number {
   	enum { INT, DOUBLE } type;
   	union {
   		double real;
   		int integer;
-  	}
+  	};
   };
+  void yyerror(char const * s);
+  int yyparse(void);
+  extern int yylex(void);
+  extern FILE* yyin;
+  extern FILE* yyout;
+  extern char* open_assembly_file();  
 }
 %union {
 	  struct Number number;
 	  int token;
 	  char * string;
-	  char * type;
-	  GPtrArray * identifiers;	
-	  struct entry identifier;
-	  struct variable variable_identifier;
+	  char * type;  	
 	  int index;
  }
+ %{
+  static void print_assembly(FILE * file, int type, YYSTYPE value);
+  #define BSIZE 128
+  extern int yylex();
+  FILE* open_pascal_file(char * filename);
+  void close_pascal_file();
+ %}
 %token NONE;
 %token DONE 0;
 %token <number> NUM;
@@ -56,13 +67,11 @@
 %token PROCEDURE
 %token ARRAY
 %token KEYWORD
-%type <entry> variable
-%type <procedure> procedure_statement
-%type <number> expression
-%type <identifiers> identifier_list
-%{
-	identifier_list=g_ptr_array_new();
-%}
+//%type <variable_identifier	> variable
+//%type <procedure> procedure_statement
+//%type <number> expression
+//%type <identifiers> identifier_list
+//%type <data_type_struct> type
 
 %%
 
@@ -74,16 +83,18 @@ program: PROGRAM ID '(' identifier_list ')' ';' declarations subprogram_declarat
 
 ;
 
-identifier_list: ID	{ g_ptr_array_add($$,$1); }
-                | identifier_list ',' ID	{ g_ptr_array_add($$,$3); }
+identifier_list: ID	{  }
+                | identifier_list ',' ID	{  }
 ;
 declarations:
                 | declarations VAR identifier_list ':' type ';'
 ;
 type: standard_type	{
-						int data_type_index=insert_data_type($1);
+						//$$=insert_data_type($1);
 					}
-      | ARR '[' NUM ".." NUM ']' OF standard_type
+      | ARR '[' NUM ".." NUM ']' OF standard_type	{
+      													//$$=insert_array_data_type($8,$3,$5);
+      												}
 ;
 
 standard_type: INTEGER
@@ -130,18 +141,18 @@ statement_list: statement
 ;
 
 statement: variable ASSIGNOP expression		{ 
-												int variable_index=find_variable($1);
-												if (strcmp(variables[variable_index].type,"integer")==0)
-													if (strcmp(variables[variable_index].type,yylval.type)==0)
-														variables[variable_index].intval=$3;
-													else 
-														variables[variable_index].intval=(int)$3;
-												else if (strcmp(variables[variable_index].type,"real")==0)
-													if (strcmp(variables[variable_index].type,yylval.type)==0)
-														variables[variable_index].realval=$3;
-													else 
-														variables[variable_index].realval=(double)$3;
-												print_assembly(yyin,ASSIGNOP,yylval.number.type);
+												//int variable_index=find_variable($1);
+												//if (strcmp(variables[variable_index].type,"integer")==0)
+													//if (strcmp(variables[variable_index].type,yylval.type)==0)
+														//variables[variable_index].intval=$3;
+													//else 
+													//	variables[variable_index].intval=(int)$3;
+												//else if (strcmp(variables[variable_index].type,"real")==0)
+												//	if (strcmp(variables[variable_index].type,yylval.type)==0)
+													//	variables[variable_index].realval=$3;
+													//else 
+														//variables[variable_index].realval=(double)$3;
+												//print_assembly(yyin,ASSIGNOP,yylval.number.type);
 											}
 ;											
           | procedure_statement
@@ -152,22 +163,22 @@ statement: variable ASSIGNOP expression		{
 ;
 
 variable: ID	{ 
-					int variable_index=find_variable($1);
-					$$=variable_index;
+					//int variable_index=find_variable($1);
+					//$$=variables_list[variable_index];
 				}
           | ID '[' expression ']'	{
-          								int variable_index=find_variable($1);
-										$$=variable_index;
+          								//int variable_index=find_variable($1);
+										//$$=variable_index;
 									}
 ;
 
 procedure_statement: ID	{ 
-							int procedure_index=find_procedure($1);
-							$$=procedures_list[procedure_index];
+							//int procedure_index=find_procedure($1);
+							//$$=procedures_list[procedure_index];
 						}
                      | ID '(' expression_list ')' { 
-													int procedure_index=find_procedure($1);
-													$$=procedures_list[procedure_index];
+													//int procedure_index=find_procedure($1);
+													//$$=procedures_list[procedure_index];
 												  }
 
 ;
@@ -202,10 +213,44 @@ factor: variable
 ;
 %%
 
+
+
+int main(int argc, char* argv[]){
+  init();
+  open_pascal_file(argv[1]);
+  yyparse();
+  close_pascal_file();
+}
+
+static void print_assembly(FILE* file, int type, YYSTYPE value){
+  int fd;
+  char path[255];
+  fd=fileno(yyin);
+  sprintf(path, "/proc/self/fd/%d", fd);
+  char filename[255];
+  memset(filename, 0, sizeof(filename));
+  readlink(path,filename,sizeof(filename)-1);
+  char assembly_file[255];
+  memset(assembly_file, 0, sizeof(assembly_file));
+  strncpy(assembly_file,filename,strlen(filename)-4);
+  strcat(assembly_file,".asm");
+  FILE* output=fopen(assembly_file,"wb");
+  if (type==NUM){
+
+  }else if (type==DONE){
+    fprintf(output,"%s","\texit\n");
+  }
+}
+
+
 FILE* open_pascal_file(char * filename){
   yyin=fopen(filename, "r");
 }
 
 void close_pascal_file(){
   fclose(yyin);
+}
+
+void yyerror(char const * s){
+  printf("Error: %s",s);
 }
