@@ -5,40 +5,129 @@
   #include <unistd.h>
   #include <vector>
   #include <string.h>
+  #include <string>
   #include "symbol_table.h" 
   extern FILE* yyin;
   extern FILE* yyout;
+ 
+  
   struct Number {
-  	enum { INT, DOUBLE } type;
+  	int type;
   	union {
   		double real;
   		int integer;
   	};
   };
-  void yyerror(char const * s);
+  extern void yyerror(char const * s);
   int yyparse(void);
   extern int yylex(void);
   extern FILE* yyin;
   extern FILE* yyout;
-  extern char* open_assembly_file();  
+  extern char* open_assembly_file(); 
+  #define BSIZE 128
+	using namespace std;
+	enum visibility { LOCAL, GLOBAL };
+	enum standard_type { INT_TYPE, REAL_TYPE };
+	enum Identifier { LOCAL_VARIABLE,GLOBAL_VARIABLE,PROCEDURE, ARRAY,KEYWORD };
+	struct Entry{
+	  string name;
+	  int token;
+	  int token_type;
+	};
+	struct Value{
+	  int standard_type;
+	  int intval;
+	  double realval;
+	};
+	struct Variable{
+	  string variable_name;
+	  int standard_type;
+	  bool is_array;
+	  vector<Value> values;
+	  int visibility;
+	  string function_name;
+	};
+	
+	struct Procedure {
+	  string procedure_name;
+	  vector<Variable> arguments;
+	  vector <Variable> local_variables;
+	  int arguments_count;
+	  int standard_return_type;
+	  bool is_array_return_type;
+	  bool is_function;
+	  int first_index;
+	  int last_index;
+	  vector<Value> return_values;
+	};
+	
+	extern vector<Entry> entries_list;
+	extern vector<Value> values_list;
+	extern vector<Variable> variables_list;
+	extern vector<Procedure> procedures_list;
+	extern int lookup(char* name,int type);
+	extern int insert (string name, int tok, int token_type);
+	extern int find_local_variable(string name);
+	extern int find_global_variable(string name);
+	extern int find_procedure(char name[]);
+	extern int find_function(char name[]);
+	extern int insert_global_variable(string variable_name, int standard_type, bool is_array, int first_index, int last_index);
+	extern int insert_local_variable(string variable_name, int standard_type, bool is_array, int first_index, int last_index,
+			string function_name);
+	extern int insert_procedure(string procedure_name,bool is_function, vector<Variable> arguments,
+			int standard_return_type, bool is_array_return_type, int first_index, int last_index
+			);
+	extern void init();
 }
 %union {
-	  struct Number number;
 	  int token;
 	  char * string;
-	  char * type;  	
+	  char * type;
+	  struct Val {
+	  	int standard_type;
+	  	int intval;
+	  	double realval;
+	  } value;
+	  struct Var {
+	  	char * name;
+	  	int standard_type;
+	  	struct Val values[1000];
+	  	int visibility;
+	  	char * function_name;
+	  } var;
+	  struct Proc {
+	  	int last_function_call_int_result;
+	    double last_function_call_double_result;
+	    char * name;
+	    struct Var arguments[1000];
+	    struct Var local_variables[1000];
+	    int arguments_count;
+	    int standard_return_type;
+	    bool is_array_return_type;
+	    struct Val return_values[1000];	
+	  } proc;
+	  struct Identifier{
+	  	char * name;
+		int standard_data_type;
+		bool is_array;
+		int first_index;
+		int last_index;
+		} identifier;
+	  struct Identifier identifiers_list[1000]; 	
 	  int index;
  }
- %{
-  static void print_assembly(FILE * file, int type, YYSTYPE value);
-  #define BSIZE 128
+ %code provides{
+  void print_assembly(FILE * file, int type, YYSTYPE value);
   extern int yylex();
   FILE* open_pascal_file(char * filename);
   void close_pascal_file();
+ }
+ %{
+ 	int last_identifier=0; 
  %}
 %token NONE;
 %token DONE 0;
-%token <number> NUM;
+%token <value> NUM;
 %token <string> ID;
 %token <string> IF "if";
 %token <string> THEN "then";
@@ -62,11 +151,6 @@
 %token <string> MULOP;
 %token <string> RELOP;
 %token <string> '(' ')' ';' '.' '[' ']' ':' '\n'
-%token VARIABLE
-%token FUNCTION
-%token PROCEDURE
-%token ARRAY
-%token KEYWORD
 //%type <variable_identifier	> variable
 //%type <procedure> procedure_statement
 //%type <number> expression
@@ -222,7 +306,7 @@ int main(int argc, char* argv[]){
   close_pascal_file();
 }
 
-static void print_assembly(FILE* file, int type, YYSTYPE value){
+void print_assembly(FILE* file, int type, YYSTYPE value){
   int fd;
   char path[255];
   fd=fileno(yyin);
@@ -253,4 +337,34 @@ void close_pascal_file(){
 
 void yyerror(char const * s){
   printf("Error: %s",s);
+}
+
+struct Entry keywords_dictionary[]={
+  {"if", IF},
+  {"then",THEN},
+  {"else",ELSE},
+  {"while",WHILE},
+  {"do",DO},
+  {"var",VAR},
+  {"program",PROGRAM},
+  {"function",FUN},
+  {"procedure",PROC},
+  {"array",ARR},
+  {"of",OF},
+  {"integer",INTEGER},
+  {"real",REAL},
+  {"not",NOT},
+  {"or",OR},
+  {"begin",BEG},
+  {"end",END},
+  {":=",ASSIGNOP},
+  {"+",SIGN},{"-",SIGN},
+  {"*",MULOP},{"/",MULOP},{"div",MULOP},{"mod",MULOP},
+  {"=",RELOP},{"<>",RELOP},{"<=",RELOP},{"<",RELOP},{"=>",RELOP},{">",RELOP}
+};
+
+void init(){
+  struct Entry *p;
+  for (p=keywords_dictionary;p->token;p++)
+    insert(p->name,p->token,KEYWORD);
 }
