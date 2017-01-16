@@ -12,15 +12,15 @@ int p;
 
 [0-9]([0-9])*  {
                   printf("integer value: %d",yytext);
-                  sscanf(yytext,"%d",&yylval.value.intval);
-                  yylval.value.standard_type=INT_TYPE;
+                  sscanf(yytext,"%d",&yylval.number.integer);
+                  yylval.number.type=INT_TYPE;
                   return NUM;
                 }
 
 [0-9]([0-9])*('.'[0-9]([0-9])*)?('E'('+'|'-'|'')[0-9]([0-9])*)? {
                                                                   printf("real value : %d",yytext);
-                                                                  sscanf(yytext,"%d",&yylval.value.realval);
-                                                                  yylval.value.standard_type=REAL_TYPE;
+                                                                  sscanf(yytext,"%d",&yylval.number.real);
+                                                                  yylval.number.type=REAL_TYPE;
                                                                   return NUM;
                                                                 }
 
@@ -29,11 +29,11 @@ int p;
                             yyerror ("compiler error");
                           p=lookup(yytext,KEYWORD);
                           if (p==0){
-                            sscanf(yytext,"%s",&yylval.string);
+                            sscanf(yytext,"%s",&yylval.name);
                             return ID;
                           }
                           yylval.token=entries_list.at(p).token;
-                          yylval.string=strdup(entries_list.at(p).name.c_str());
+                          yylval.name=strdup(entries_list.at(p).name.c_str());
                           return entries_list.at(p).token;
                         }
 
@@ -47,11 +47,11 @@ int p;
             yyerror ("compiler error");
           p=lookup(yytext,KEYWORD);
           if (p==0){
-            yylval.token=NONE;
+            sscanf(yytext,"%s",&yylval.name);
             return yytext[yyleng-1];
           }
           yylval.token=entries_list.at(p).token;
-          yylval.string=strdup(entries_list.at(p).name.c_str());
+          yylval.name=strdup(entries_list.at(p).name.c_str());
           return entries_list.at(p).token;
         }
 %%

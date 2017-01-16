@@ -1,5 +1,4 @@
 #include "parser.hpp"
-#include <math.h>
 #include <stdexcept>
 #define STRMAX 999
 #define NAMEMAX 50
@@ -9,87 +8,82 @@
 #define MAXPROCEDURES 1000
 int lastchar = -1;
 vector<Entry> entries_list;
-vector<Value> values_list;
-vector<Variable> variables_list;
-vector<Procedure> procedures_list;
-struct Variable variable;
-struct Procedure procedure;
-int lastentry = 0;
-int last_variable=0;
-int last_procedure=0;
-int last_procedure_argument=0;
+int lastentry = -1;
+int last_address=0;
 
 int
 lookup (char* name,int token_type)
 {
   int p;
-  for (p = lastentry; p > 0; p--)
+  for (p = 0; p <=lastentry; p++)
     if (entries_list.at(p).name.compare(name) == 0 && entries_list.at(p).token_type==token_type)
     	return p;
-  return 0;
+  return -1;
 }
 
-int find_local_variable(string name){
+int find_procedure(string name, vector<int> arguments_addresses, int return_type){
   int p;
-  for (p=last_variable;p>0;p--)
-    if (name.compare(variables_list.at(p).variable_name)==0 && variables_list.at(p).visibility==LOCAL)
-      return p;
-  return 0;
+  for (p = 0; p <=lastentry; p++)
+    if (entries_list.at(p).name.compare(name)==0 && entries_list.at(p).token_type==PROCEDURE &&
+      entries_list.at(p).arguments_addresses==arguments_addresses && entries_list.at(p).data_type==return_type )
+        return p;
+  return -1;
 }
+
 int find_global_variable(string name){
   int p;
-  for (p=last_variable;p>0;p--)
-    if (name.compare(variables_list.at(p).variable_name)==0 && variables_list.at(p).visibility==GLOBAL)
+  for (p=0;p<=lastentry;p++)
+    if(entries_list.at(p).name.compare(name)==0 && entries_list.at(p).token_type==GLOBAL_VARIABLE)
       return p;
-  return 0;
+  return -1;
 }
-int find_procedure(string name){
+
+int find_local_variable(string name, int function_index){
   int p;
-  for (p=last_procedure;p>0;p--)
-    if (name.compare(procedures_list.at(p).procedure_name)==0)
-      return p;
-  return 0;
+  for (p=0;p<=lastentry;p++)
+    if (entries_list.at(p).name.compare(name) && entries_list.at(p).token_type==LOCAL_VARIABLE
+      && entries_list.at(p).local_variable_function_index==function_index)
+        return p;
+    return -1;
 }
 
-
-int insert (string name, int tok,int token_type){
-  int len;
-  len = name.length();
-  if (lastentry + 1 >= SYMMAX)
-    throw invalid_argument("keyword table full");
-  if (lastchar + len + 1 >= STRMAX)
-	throw invalid_argument("lexemes array full");
+int insert(string name, int token, int token_type){
+  struct Entry entry;
+  entry.name=name;
+  entry.token=token;
+  entry.token_type=token_type;
+  entries_list.push_back(entry);
   lastentry++;
-  entries_list.at(lastentry).token = tok;
-  lastchar += len + 1;
-  entries_list.at(lastentry).name=name;
-  entries_list.at(lastentry).token_type=token_type;
   return lastentry;
 }
 
 int insert_global_variable(string variable_name, int standard_type, bool is_array, int first_index, int last_index){
   int len;
   len = variable_name.length();
-  if (last_variable + 1 >= MAXVARIABLES)
+  if (lastentry >= MAXVARIABLES)
 	  throw invalid_argument("variables table full");
   if (len + 1 >= NAMEMAX)
     throw invalid_argument("Too long name for variable");
-  last_variable++;
-  variable.variable_name=variable_name;
-  variable.standard_type=standard_type;
-  variable.visibility=GLOBAL;
-  variable.is_array=is_array;
-  struct Value value;
-  value.standard_type=standard_type;
-  if (variable.is_array){
+  struct Entry variable;
+  variable.name=variable_name;
+  variable.address=last_address;
+  variable.token=ID;
+  variable.token_type=GLOBAL_VARIABLE;
+  variable.data_type=standard_type;
+  variable.is_array_data_type=is_array;
+  struct Number value;
+  value.type=standard_type;
+  if (variable.is_array_data_type){
 	  if (first_index<=last_index && first_index>=0 && last_index>=0){
+      variable.first_index=first_index;
+      variable.last_index=last_index;
 		  for (int i=0;i<last_index;i++){
-		  		  switch (value.standard_type){
+		  		  switch (value.type){
 		  		   case INT_TYPE:
-		  		 	  value.intval=0;
+		  		 	  value.integer=0;
 		  		 	  break;
 		  		   case REAL_TYPE:
-		  		 	  value.realval=0.0;
+		  		 	  value.real=0.0;
 		  		 	  break;
 		  		   default:
 		  		 	  throw invalid_argument("Wrong value type");
@@ -101,130 +95,104 @@ int insert_global_variable(string variable_name, int standard_type, bool is_arra
 	  }
 
   } else {
-	  switch (value.standard_type){
+	  switch (value.type){
 	  case INT_TYPE:
-		  value.intval=0;
+		  value.integer=0;
 		  break;
 	  case REAL_TYPE:
-		  value.realval=0.0;
+		  value.real=0.0;
 		  break;
 	  default:
 		  throw invalid_argument("Wrong value type");
 	  }
 	  variable.values.push_back(value);
   }
-  insert(variable_name,ID,GLOBAL_VARIABLE);
-  variables_list.push_back(variable);
-  return last_variable;
+  switch (variable.data_type){
+  case INT_TYPE:
+      last_address+=4;
+      break;
+  case REAL_TYPE:
+      last_address+=8;
+      break;
+  default:
+    throw invalid_argument("Wrong value type");
+  }
+  lastentry++;
+  return lastentry;
 }
 
-int insert_local_variable(string variable_name, int standard_type, bool is_array, int first_index, int last_index, string function_name) {
-	int len;
-	  len = variable_name.length();
-	  if (last_variable + 1 >= MAXVARIABLES)
-		  throw invalid_argument("variables table full");
-	  if (len + 1 >= NAMEMAX)
-	    throw invalid_argument("Too long name for variable");
-	  last_variable++;
-	  variable.variable_name=variable_name;
-	  variable.standard_type=standard_type;
-	  variable.visibility=LOCAL;
-	  variable.function_name=function_name;
-	  variable.is_array=is_array;
-	  struct Value value;
-	  value.standard_type=standard_type;
-	  if (variable.is_array){
-		  if (first_index<=last_index && first_index>=0 && last_index>=0){
-			  for (int i=0;i<last_index;i++){
-			  		  switch (value.standard_type){
-			  		   case INT_TYPE:
-			  		 	  value.intval=0;
-			  		 	  break;
-			  		   case REAL_TYPE:
-			  		 	  value.realval=0.0;
-			  		 	  break;
-			  		   default:
-			  		 	  throw invalid_argument("Wrong value type");
-			  		   }
-			  		  variable.values.push_back(value);
-			  	  }
-		  } else {
-			  throw invalid_argument("Wrong indexes of array");
-		  }
-
-	  } else {
-		  switch (value.standard_type){
-		  case INT_TYPE:
-			  value.intval=0;
-			  break;
-		  case REAL_TYPE:
-			  value.realval=0.0;
-			  break;
-		  default:
-			  throw invalid_argument("Wrong value type");
-		  }
-		  variable.values.push_back(value);
-	  }
-	  insert(variable_name,ID,LOCAL_VARIABLE);
-	  variables_list.push_back(variable);
-	  return last_variable;
+void change_variables_to_local(int variables_indexes[], int procedure_index){
+    for (int i=0;i<sizeof(variables_indexes);i++){
+      entries_list[i].local_variable_function_index=procedure_index;
+      entries_list[i].token_type=LOCAL_VARIABLE;
+    }
 }
 
-
-
-int insert_procedure(string procedure_name,bool is_function, vector<Variable> arguments,
+int insert_procedure(string procedure_name,bool is_function, vector<int> arguments_addresses,
 		int standard_return_type, bool is_array_return_type, int first_index, int last_index
 		){
   int len;
   len = procedure_name.length();
-  if (last_procedure + 1 >= MAXPROCEDURES)
+  if (lastentry + 1 >= MAXPROCEDURES)
 	  throw invalid_argument("procedures table full");
   if (len + 1 >= NAMEMAX)
 	  throw invalid_argument("Too long name for procedure");
-  last_procedure++;
-  procedure.procedure_name=procedure_name;
+  struct Entry procedure;
+  procedure.name=procedure_name;
+  procedure.token=ID;
+  procedure.address=last_address;
+  procedure.token_type=PROCEDURE;
   procedure.is_function=is_function;
-  for (Variable argument: arguments)
-	  procedure.arguments.push_back(argument);
-  procedure.arguments_count=procedure.arguments.size();
-  procedure.is_function=is_function;
+  procedure.arguments_addresses=arguments_addresses;
+  procedure.arguments_count=procedure.arguments_addresses.size();
   if (procedure.is_function){
-	  procedure.standard_return_type=standard_return_type;
-	  procedure.is_array_return_type=is_array_return_type;
-	  struct Value value;
-	  if (procedure.is_array_return_type){
+	  procedure.data_type=standard_return_type;
+	  procedure.is_array_data_type=is_array_return_type;
+	  struct Number value;
+    value.type=standard_return_type;
+	  if (procedure.is_array_data_type){
 		  if (first_index<=last_index && first_index>=0 && last_index>=0){
+        procedure.first_index=first_index;
+        procedure.last_index=last_index;
 			  for (int i=0;i<last_index;i++){
-				  switch (procedure.standard_return_type){
+				  switch (procedure.data_type){
 				  case INT_TYPE:
-					  value.intval=0;
+					  value.integer=0;
 					  break;
 				  case REAL_TYPE:
-					  value.realval=0.0;
+					  value.real=0.0;
 					  break;
 				  default:
 					  throw invalid_argument("Wrong value type");
 				  }
-				  procedure.return_values.push_back(value);
+				  procedure.values.push_back(value);
 			  }
 		  } else {
 			  throw invalid_argument("Wrong indexes of array");
 		  }
 	  } else {
-		  switch (procedure.standard_return_type){
+		  switch (procedure.data_type){
 		  				  case INT_TYPE:
-		  					  value.intval=0;
+		  					  value.integer=0;
 		  					  break;
 		  				  case REAL_TYPE:
-		  					  value.realval=0.0;
+		  					  value.real=0.0;
 		  					  break;
 		  				  default:
 		  					  throw invalid_argument("Wrong value type");
 		  				  }
-		  				  procedure.return_values.push_back(value);
+		  				  procedure.values.push_back(value);
 	  }
+    switch(procedure.data_type){
+      case INT_TYPE:
+        last_address+=4;
+        break;
+      case REAL_TYPE:
+        last_address+=8;
+        break;
+    }
   }
-  insert(procedure_name,ID,PROCEDURE);
-  procedures_list.push_back(procedure);
-  return last_procedure;
+  procedure.data_type=VOID;
+  lastentry++;
+return  lastentry;
 }

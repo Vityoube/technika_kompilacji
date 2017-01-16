@@ -6,11 +6,10 @@
   #include <vector>
   #include <string.h>
   #include <string>
-  #include "symbol_table.h" 
   extern FILE* yyin;
   extern FILE* yyout;
- 
-  
+
+
   struct Number {
   	int type;
   	union {
@@ -23,98 +22,58 @@
   extern int yylex(void);
   extern FILE* yyin;
   extern FILE* yyout;
-  extern char* open_assembly_file(); 
+  extern char* open_assembly_file();
   #define BSIZE 128
 	using namespace std;
 	enum visibility { LOCAL, GLOBAL };
-	enum standard_type { INT_TYPE, REAL_TYPE };
-	enum Identifier { LOCAL_VARIABLE,GLOBAL_VARIABLE,PROCEDURE, ARRAY,KEYWORD };
+	enum standard_type { INT_TYPE, REAL_TYPE,VOID };
+	enum Identifier { LOCAL_VARIABLE,GLOBAL_VARIABLE,VALUE,PROCEDURE,KEYWORD };
 	struct Entry{
 	  string name;
 	  int token;
 	  int token_type;
-	};
-	struct Value{
-	  int standard_type;
-	  int intval;
-	  double realval;
-	};
-	struct Variable{
-	  string variable_name;
-	  int standard_type;
-	  bool is_array;
-	  vector<Value> values;
-	  int visibility;
-	  string function_name;
-	};
-	
-	struct Procedure {
-	  string procedure_name;
-	  vector<Variable> arguments;
-	  vector <Variable> local_variables;
-	  int arguments_count;
-	  int standard_return_type;
-	  bool is_array_return_type;
-	  bool is_function;
+    bool is_array_data_type;
 	  int first_index;
 	  int last_index;
-	  vector<Value> return_values;
+    int data_type;
+ 	  vector<Number> values;
+    vector<int> arguments_addresses;
+    int arguments_count;
+	  bool is_function;
+    int address;
+    int local_variable_function_index;
 	};
-	
+  struct Type {
+    int standard_type;
+    bool is_array;
+    int first_index;
+    int last_index;
+  };
+
 	extern vector<Entry> entries_list;
-	extern vector<Value> values_list;
-	extern vector<Variable> variables_list;
-	extern vector<Procedure> procedures_list;
-	extern int lookup(char* name,int type);
-	extern int insert (string name, int tok, int token_type);
-	extern int find_local_variable(string name);
+	extern int lookup(char* name, int token_type);
+	extern int find_procedure(string name, vector<int> arguments_addresses, int return_type);
 	extern int find_global_variable(string name);
-	extern int find_procedure(char name[]);
-	extern int find_function(char name[]);
+	extern int find_local_variable(string name, int function_index);
+  extern int insert(string name, int token, int token_type);
 	extern int insert_global_variable(string variable_name, int standard_type, bool is_array, int first_index, int last_index);
-	extern int insert_local_variable(string variable_name, int standard_type, bool is_array, int first_index, int last_index,
-			string function_name);
-	extern int insert_procedure(string procedure_name,bool is_function, vector<Variable> arguments,
-			int standard_return_type, bool is_array_return_type, int first_index, int last_index
-			);
+	extern void change_variables_to_local(int variables_indexes[], int procedure_index);
+	extern int insert_procedure(string procedure_name,bool is_function, vector<int> arguments_addresses,
+		int standard_return_type, bool is_array_return_type, int first_index, int last_index
+		);
 	extern void init();
 }
 %union {
 	  int token;
-	  char * string;
-	  char * type;
-	  struct Val {
-	  	int standard_type;
-	  	int intval;
-	  	double realval;
-	  } value;
-	  struct Var {
-	  	char * name;
-	  	int standard_type;
-	  	struct Val values[1000];
-	  	int visibility;
-	  	char * function_name;
-	  } var;
-	  struct Proc {
-	  	int last_function_call_int_result;
-	    double last_function_call_double_result;
-	    char * name;
-	    struct Var arguments[1000];
-	    struct Var local_variables[1000];
-	    int arguments_count;
-	    int standard_return_type;
-	    bool is_array_return_type;
-	    struct Val return_values[1000];	
-	  } proc;
-	  struct Identifier{
-	  	char * name;
-		int standard_data_type;
-		bool is_array;
-		int first_index;
-		int last_index;
-		} identifier;
-	  struct Identifier identifiers_list[1000]; 	
+	  int token_type;
+	  char * name;
+	  Number number;
+	  int address;
 	  int index;
+    char * identifiers[1000];
+    int standard_type;
+    int declarations_index[1000];
+    struct Type data_type;
  }
  %code provides{
   void print_assembly(FILE * file, int type, YYSTYPE value);
@@ -122,13 +81,13 @@
   FILE* open_pascal_file(char * filename);
   void close_pascal_file();
  }
- %{
- 	int last_identifier=0; 
- %}
+%{
+    int last_identifier=0;
+%}
 %token NONE;
 %token DONE 0;
-%token <value> NUM;
-%token <string> ID;
+%token <number> NUM;
+%token <name> ID;
 %token <string> IF "if";
 %token <string> THEN "then";
 %token <string> ELSE "else";
@@ -154,8 +113,10 @@
 //%type <variable_identifier	> variable
 //%type <procedure> procedure_statement
 //%type <number> expression
-//%type <identifiers> identifier_list
-//%type <data_type_struct> type
+%type <identifiers> identifier_list
+%type <data_type> type
+%type <standard_type> standard_type
+%type <declarations_index> declarations
 
 %%
 
@@ -167,22 +128,47 @@ program: PROGRAM ID '(' identifier_list ')' ';' declarations subprogram_declarat
 
 ;
 
-identifier_list: ID	{  }
-                | identifier_list ',' ID	{  }
+identifier_list: ID	{
+                      memset($$[last_identifier],0,strlen($1));
+                      strcpy($$[last_identifier],$1);
+                      last_identifier++;
+                    }
+                | identifier_list ',' ID	{
+                                              //$$=yylval.identifiers;
+                                          }
 ;
 declarations:
-                | declarations VAR identifier_list ':' type ';'
+                | declarations VAR identifier_list ':' type ';'   {
+                                                                      for (int i=0;i<last_identifier;i++){
+                                                                        string identifier($3[i]);
+                                                                        struct Type type=$5;
+                                                                        $$[i]=insert_global_variable(identifier, type.standard_type,type.is_array,type.first_index,type.last_index);
+                                                                      }
+                                                                      memset(&(yylval.identifiers[0]),0,sizeof(yylval.identifiers));
+                                                                  }
 ;
 type: standard_type	{
-						//$$=insert_data_type($1);
-					}
+						            struct Type type;
+                        type.standard_type=$1;
+                        type.is_array=false;
+                        type.first_index=0;
+                        type.last_index=0;
+                        $$=type;
+					          }
       | ARR '[' NUM ".." NUM ']' OF standard_type	{
-      													//$$=insert_array_data_type($8,$3,$5);
-      												}
+                                                      struct Type type;
+                                                      type.standard_type=$8;
+                                                      type.is_array=true;
+                                                      struct Number first_index_NUM=$3;
+                                                      struct Number last_index_NUM=$5;
+                                                      type.first_index=first_index_NUM.integer;
+                                                      type.last_index=last_index_NUM.integer;
+                                                      $$=type;
+      												                    }
 ;
 
-standard_type: INTEGER
-               | REAL
+standard_type: INTEGER  { $$=INT_TYPE;  }
+               | REAL   { $$=REAL_TYPE; }
 ;
 
 subprogram_declarations:
@@ -224,21 +210,21 @@ statement_list: statement
 
 ;
 
-statement: variable ASSIGNOP expression		{ 
+statement: variable ASSIGNOP expression		{
 												//int variable_index=find_variable($1);
 												//if (strcmp(variables[variable_index].type,"integer")==0)
 													//if (strcmp(variables[variable_index].type,yylval.type)==0)
 														//variables[variable_index].intval=$3;
-													//else 
+													//else
 													//	variables[variable_index].intval=(int)$3;
 												//else if (strcmp(variables[variable_index].type,"real")==0)
 												//	if (strcmp(variables[variable_index].type,yylval.type)==0)
 													//	variables[variable_index].realval=$3;
-													//else 
+													//else
 														//variables[variable_index].realval=(double)$3;
 												//print_assembly(yyin,ASSIGNOP,yylval.number.type);
 											}
-;											
+;
           | procedure_statement
           | compound_statement
           | IF expression THEN statement ELSE statement
@@ -246,7 +232,7 @@ statement: variable ASSIGNOP expression		{
 
 ;
 
-variable: ID	{ 
+variable: ID	{
 					//int variable_index=find_variable($1);
 					//$$=variables_list[variable_index];
 				}
@@ -256,11 +242,11 @@ variable: ID	{
 									}
 ;
 
-procedure_statement: ID	{ 
+procedure_statement: ID	{
 							//int procedure_index=find_procedure($1);
 							//$$=procedures_list[procedure_index];
 						}
-                     | ID '(' expression_list ')' { 
+                     | ID '(' expression_list ')' {
 													//int procedure_index=find_procedure($1);
 													//$$=procedures_list[procedure_index];
 												  }
@@ -289,9 +275,9 @@ term: factor
 ;
 
 factor: variable
-        |  ID '(' expression_list ')'  
-                
-        | NUM 
+        |  ID '(' expression_list ')'
+
+        | NUM
         | '(' expression ')'
         | NOT factor
 ;
