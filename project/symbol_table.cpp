@@ -21,11 +21,11 @@ lookup (char* name,int token_type)
   return -1;
 }
 
-int find_procedure(string name, vector<int> arguments_addresses, int return_type){
+int find_procedure(string name, vector<int> arguments_indexes, int return_type){
   int p;
   for (p = 0; p <=lastentry; p++)
     if (entries_list.at(p).name.compare(name)==0 && entries_list.at(p).token_type==PROCEDURE &&
-      entries_list.at(p).arguments_addresses==arguments_addresses && entries_list.at(p).data_type==return_type )
+      entries_list.at(p).arguments_indexes==arguments_indexes && entries_list.at(p).data_type==return_type )
         return p;
   return -1;
 }
@@ -57,7 +57,7 @@ int insert(string name, int token, int token_type){
   return lastentry;
 }
 
-int insert_global_variable(string variable_name, int standard_type, bool is_array, int first_index, int last_index){
+int insert_variable(string variable_name, int standard_type, bool is_array, int first_index, int last_index, int visibility){
   int len;
   len = variable_name.length();
   if (lastentry >= MAXVARIABLES)
@@ -68,7 +68,10 @@ int insert_global_variable(string variable_name, int standard_type, bool is_arra
   variable.name=variable_name;
   variable.address=last_address;
   variable.token=ID;
-  variable.token_type=GLOBAL_VARIABLE;
+  if (visibility==GLOBAL)
+    variable.token_type=GLOBAL_VARIABLE;
+  else if (visibility==LOCAL)
+    variable.token_type=LOCAL_VARIABLE
   variable.data_type=standard_type;
   variable.is_array_data_type=is_array;
   struct Number value;
@@ -121,14 +124,11 @@ int insert_global_variable(string variable_name, int standard_type, bool is_arra
   return lastentry;
 }
 
-void change_variables_to_local(int variables_indexes[], int procedure_index){
-    for (int i=0;i<sizeof(variables_indexes);i++){
-      entries_list[i].local_variable_function_index=procedure_index;
-      entries_list[i].token_type=LOCAL_VARIABLE;
-    }
+void assign_procedure_to_local_variable(int variable_index, int procedure_index){
+      entries_list[variable_index].local_variable_function_index=procedure_index
 }
 
-int insert_procedure(string procedure_name,bool is_function, vector<int> arguments_addresses,
+int insert_procedure(string procedure_name,bool is_function, vector<int> arguments_indexes,
 		int standard_return_type, bool is_array_return_type, int first_index, int last_index
 		){
   int len;
@@ -143,8 +143,9 @@ int insert_procedure(string procedure_name,bool is_function, vector<int> argumen
   procedure.address=last_address;
   procedure.token_type=PROCEDURE;
   procedure.is_function=is_function;
-  procedure.arguments_addresses=arguments_addresses;
+  procedure.arguments_indexes=arguments_indexes;
   procedure.arguments_count=procedure.arguments_addresses.size();
+  rocedure.data_type=VOID;
   if (procedure.is_function){
 	  procedure.data_type=standard_return_type;
 	  procedure.is_array_data_type=is_array_return_type;
@@ -192,7 +193,6 @@ int insert_procedure(string procedure_name,bool is_function, vector<int> argumen
         break;
     }
   }
-  procedure.data_type=VOID;
   lastentry++;
 return  lastentry;
 }

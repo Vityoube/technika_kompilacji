@@ -22,7 +22,7 @@
   extern int yylex(void);
   extern FILE* yyin;
   extern FILE* yyout;
-  extern char* open_assembly_file();
+  FILE* open_assembly_file();
   #define BSIZE 128
 	using namespace std;
 	enum visibility { LOCAL, GLOBAL };
@@ -37,7 +37,7 @@
 	  int last_index;
     int data_type;
  	  vector<Number> values;
-    vector<int> arguments_addresses;
+    vector<int> arguments_indexes;
     int arguments_count;
 	  bool is_function;
     int address;
@@ -56,8 +56,8 @@
 	extern int find_global_variable(string name);
 	extern int find_local_variable(string name, int function_index);
   extern int insert(string name, int token, int token_type);
-	extern int insert_global_variable(string variable_name, int standard_type, bool is_array, int first_index, int last_index);
-	extern void change_variables_to_local(int variables_indexes[], int procedure_index);
+	extern int insert_variable(string variable_name, int standard_type, bool is_array, int first_index, int last_index, int visibility);
+	extern void assign_procedure_to_local_variable(int variable_index, int procedure_index);
 	extern int insert_procedure(string procedure_name,bool is_function, vector<int> arguments_addresses,
 		int standard_return_type, bool is_array_return_type, int first_index, int last_index
 		);
@@ -73,55 +73,58 @@
     char * identifiers[1000];
     int standard_type;
     int declarations_index[1000];
+    int arguments_indexes[1000];
     struct Type data_type;
  }
  %code provides{
-  void print_assembly(FILE * file, int type, YYSTYPE value);
+  void print_assembly(int token, YYSTYPE token_value);
   extern int yylex();
   FILE* open_pascal_file(char * filename);
   void close_pascal_file();
  }
 %{
     int last_identifier=0;
+    int current_procedure_index=-1;
 %}
 %token NONE;
 %token DONE 0;
 %token <number> NUM;
 %token <name> ID;
-%token <string> IF "if";
-%token <string> THEN "then";
-%token <string> ELSE "else";
-%token <string> WHILE "while";
-%token <string> DO "do";
-%token <string> BEG "begin";
-%token <string> END "end";
-%token <string> VAR "var";
-%token <string> PROGRAM "program";
-%token <string>  FUN "function";
-%token <string> PROC "procedure";
-%token <string> ARR "array";
-%token <string> OF "of";
-%token <string> INTEGER "integer";
-%token <string> REAL "real";
-%token <string> NOT "not";
-%token <string> OR "or";
-%token <string> SIGN;
-%token <string> ASSIGNOP;
-%token <string> MULOP;
-%token <string> RELOP;
-%token <string> '(' ')' ';' '.' '[' ']' ':' '\n'
+%token <name> IF "if";
+%token <name> THEN "then";
+%token <name> ELSE "else";
+%token <name> WHILE "while";
+%token <name> DO "do";
+%token <name> BEG "begin";
+%token <name> END "end";
+%token <name> VAR "var";
+%token <name> PROGRAM "program";
+%token <name>  FUN "function";
+%token <name> PROC "procedure";
+%token <name> ARR "array";
+%token <name> OF "of";
+%token <name> INTEGER "integer";
+%token <name> REAL "real";
+%token <name> NOT "not";
+%token <name> OR "or";
+%token <name> SIGN;
+%token <name> ASSIGNOP;
+%token <name> MULOP;
+%token <name> RELOP;
+%token <name> '(' ')' ';' '.' '[' ']' ':' '\n'
+%token <name> LAB0
 //%type <variable_identifier	> variable
 //%type <procedure> procedure_statement
 //%type <number> expression
 %type <identifiers> identifier_list
 %type <data_type> type
 %type <standard_type> standard_type
-%type <declarations_index> declarations
+%type <index> subprogram_head
 
 %%
 
 
-program: PROGRAM ID '(' identifier_list ')' ';' declarations subprogram_declarations compound_statement '.'   {
+program: PROGRAM ID '(' identifier_list ')' ';' global_declarations subprogram_declarations compound_statement '.'   {
                                                                                                                     print_assembly(yyin,DONE,yylval);
                                                                                                                     YYACCEPT;
                                                                                                                 }
@@ -134,19 +137,47 @@ identifier_list: ID	{
                       last_identifier++;
                     }
                 | identifier_list ',' ID	{
-                                              //$$=yylval.identifiers;
+                                            memset($$[last_identifier],0,strlen($3));
+                                            strcpy($$[last_identifier],$3);
+                                            last_identifier++;
+                                            print_assembly()
                                           }
 ;
-declarations:
-                | declarations VAR identifier_list ':' type ';'   {
-                                                                      for (int i=0;i<last_identifier;i++){
-                                                                        string identifier($3[i]);
-                                                                        struct Type type=$5;
-                                                                        $$[i]=insert_global_variable(identifier, type.standard_type,type.is_array,type.first_index,type.last_index);
-                                                                      }
-                                                                      memset(&(yylval.identifiers[0]),0,sizeof(yylval.identifiers));
-                                                                  }
+global_declarations:
+                | global_declarations VAR identifier_list ':' type ';'   {
+                                                                            for (int i=0;i<last_identifier;i++){
+                                                                              string identifier($3[i]);
+                                                                              int p=find_global_variable(identifier);
+                                                                              if(p==-1){
+                                                                                struct Type type=$5;
+                                                                                $<declarations_index>$[i]=insert_variable(identifier, type.standard_type,type.is_array,type.first_index,type.last_index,GLOBAL);
+                                                                                printf("global variable: %s",entries_list.at($<declarations_index>$[i]).name);
+                                                                              } else {
+                                                                                yyerror("Variable %d is already defined.",identifier);
+                                                                              }
+
+                                                                            }
+                                                                            memset(&(yylval.identifiers[0]),0,sizeof(yylval.identifiers));
+                                                                            last_identifier=0;
+                                                                          }
 ;
+local_declarations:
+                | local_declarations VAR identifier_list ':' type ';'   {
+                                                                            for (int i=0;i<last_identifier;i++){
+                                                                              string identifier($3[i]);
+                                                                              int p=find_local_variable(identifier, current_procedure_index);
+                                                                              if (p==-1){
+                                                                                struct Type type=$5;
+                                                                                $<declarations_index>$[i]=insert_variable(identifier, type.standard_type,type.is_array,type.first_index,type.last_index,LOCAL);
+                                                                                assign_procedure_to_local_variable($<declarations_index>$[i],current_procedure_index);
+                                                                                printf("local variable: %s",entries_list.at($<declarations_index>$[i]).name);
+                                                                              } else {
+                                                                                yyerror("Variable %d is already defined at this scope.",identifier);
+                                                                              }
+                                                                            }
+                                                                            memset(&(yylval.identifiers[0]),0,sizeof(yylval.identifiers));
+                                                                            last_identifier=0;
+                                                                          }
 type: standard_type	{
 						            struct Type type;
                         type.standard_type=$1;
@@ -178,13 +209,40 @@ subprogram_declarations:
 
 
 subprogram_declaration: subprogram_head
-                        declarations
+                        local_declarations
                         compound_statement
 
 ;
 
-subprogram_head: FUN ID arguments ':' standard_type ';'
-                | PROC ID arguments ';' '\n'
+subprogram_head: FUN ID arguments ':' standard_type ';' {
+                                                            string function_name($2);
+                                                            vector<int> arguments_indexes;
+                                                            for (int i=0;i<last_identifier;i++){
+                                                              arguments_indexes.push_back($3[i]);
+                                                            }
+                                                            int p=find_procedure(function_name,arguments_indexes,$5);
+                                                            if (p==-1){
+                                                              current_function_index=insert_procedure(function_name,true,arguments_indexes,$5,false,0,0);
+                                                            } else {
+                                                              yyerror("The function is already defined in the program.")
+                                                            }
+                                                            memset(&(yylval.identifiers[0]),0,sizeof(yylval.identifiers));
+                                                            last_identifier=0;
+
+                                                        }
+                | PROC ID arguments ';' '\n'            {
+                                                            string procedure_name($2);
+                                                            vector<int> arguments_indexes;
+                                                            for (int i=0;i<last_identifier;i++)
+                                                              arguments_indexes.push_back($3[i]);
+                                                            int p=find_procedure(procedure_name,arguments_indexes,VOID);
+                                                            if (p==-1)
+                                                              current_function_index=insert_procedure(procedure_name,false,arguments_indexes,VOID,false,0,0);
+                                                            else
+                                                              yyerror("The procedure is already defined in the program.");
+                                                            memset(&(yylval.identifiers[0]),0,sizeof(yylval.identifiers));
+                                                            last_identifier=0;
+                                                        }
 
 ;
 
@@ -224,7 +282,7 @@ statement: variable ASSIGNOP expression		{
 														//variables[variable_index].realval=(double)$3;
 												//print_assembly(yyin,ASSIGNOP,yylval.number.type);
 											}
-;
+
           | procedure_statement
           | compound_statement
           | IF expression THEN statement ELSE statement
@@ -288,11 +346,28 @@ factor: variable
 int main(int argc, char* argv[]){
   init();
   open_pascal_file(argv[1]);
+  open_assembly_file();
   yyparse();
   close_pascal_file();
 }
 
-void print_assembly(FILE* file, int type, YYSTYPE value){
+void print_assembly(int token, YYSTYPE token_value){
+
+  if (token==NUM){
+
+  }else if (token==LAB0){
+    fprintf(yyout,"%s","\tjump.i\t\n");
+  }else if (token==DONE){
+    fprintf(yyout,"%s","\texit\n");
+  }
+}
+
+
+FILE* open_pascal_file(char * filename){
+  yyin=fopen(filename, "r");
+}
+
+FILE* open_assembly_file(){
   int fd;
   char path[255];
   fd=fileno(yyin);
@@ -304,17 +379,7 @@ void print_assembly(FILE* file, int type, YYSTYPE value){
   memset(assembly_file, 0, sizeof(assembly_file));
   strncpy(assembly_file,filename,strlen(filename)-4);
   strcat(assembly_file,".asm");
-  FILE* output=fopen(assembly_file,"wb");
-  if (type==NUM){
-
-  }else if (type==DONE){
-    fprintf(output,"%s","\texit\n");
-  }
-}
-
-
-FILE* open_pascal_file(char * filename){
-  yyin=fopen(filename, "r");
+  yyout=fopen(assembly_file,"wb");
 }
 
 void close_pascal_file(){
@@ -323,6 +388,7 @@ void close_pascal_file(){
 
 void yyerror(char const * s){
   printf("Error: %s",s);
+  throw invalid_argument(s);
 }
 
 struct Entry keywords_dictionary[]={
