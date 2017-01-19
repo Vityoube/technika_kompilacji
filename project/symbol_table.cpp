@@ -13,6 +13,7 @@ int last_address=0;
 vector<string> current_identifiers_list;
 vector<int> current_declarations_indexes;
 vector<int> current_parameter_indexes;
+vector<int> current_arguments_indexes;
 int current_procedure_index=-1;
 using namespace std;
 int
@@ -34,6 +35,20 @@ int find_procedure(string name, vector<int> arguments_indexes, int return_type){
   return -1;
 }
 
+int find_procedure(string name, vector<int> arguments_types, vector<bool> is_array,vector<int> sizes){
+  for (int p=0;p<=lastentry;p++)
+  if (entries_list.at(p).name.compare(name)==0 && entries_list.at(p).token_type==PROCEDURE &&
+        entries_list.at(p).arguments_indexes.size()==arguments_types.size()){
+          int current_procedure_argument_index;
+          for (current_procedure_argument_index=0;current_procedure_argument_index<arguments_types.size();current_procedure_argument_index++)
+            if (!find_argument(p,current_procedure_argument_index, arguments_types.at(current_procedure_argument_index), is_array.at(current_procedure_argument_index),
+              sizes.at(current_procedure_argument_index)))
+                return -1;
+          return p;
+        }
+  return -1;
+}
+
 int find_global_variable(string name){
   int p;
   for (p=0;p<=lastentry;p++)
@@ -50,6 +65,14 @@ int find_local_variable(string name, int function_index){
         return p;
     return -1;
 }
+
+bool find_argument(int function_index, int argument_index, int argument_type, bool is_array, int size){
+  struct Entry argument=entries_list.at(entries_list.at(function_index).arguments_indexes.at(argument_index));
+  if (argument.data_type==argument_type && argument.is_array_data_type==is_array && argument.last_index-argument.first_index==size)
+    return true;
+  return false;
+}
+
 
 int insert(string name, int token, int token_type){
   struct Entry entry;
@@ -76,6 +99,10 @@ int insert_variable(string variable_name, int standard_type, bool is_array, int 
     variable.token_type=GLOBAL_VARIABLE;
   else if (visibility==LOCAL)
     variable.token_type=LOCAL_VARIABLE;
+  else if (visibility=ARG)
+    variable.token_type=ARGUMENT;
+  else if (visibility==TEMPORARY)
+    variable.token_type=TEMPORARY_VARIABLE;
   variable.data_type=standard_type;
   variable.is_array_data_type=is_array;
   struct Number value;
@@ -102,6 +129,8 @@ int insert_variable(string variable_name, int standard_type, bool is_array, int 
 	  }
 
   } else {
+    variable.first_index=0;
+    variable.last_index=0;
 	  switch (value.type){
 	  case INT_TYPE:
 		  value.integer=0;
@@ -177,6 +206,8 @@ int insert_procedure(string procedure_name,bool is_function, vector<int> argumen
 			  throw invalid_argument("Wrong indexes of array");
 		  }
 	  } else {
+      procedure.first_index=0;
+      procedure.last_index=0;
 		  switch (procedure.data_type){
 		  				  case INT_TYPE:
 		  					  value.integer=0;

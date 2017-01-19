@@ -5,5 +5,9 @@ function f(a,b:integer;c:real):integer;
 var fourthVar: real;
 begin
 end;
+procedure p;
 begin
+end;
+begin
+p;
 end.
