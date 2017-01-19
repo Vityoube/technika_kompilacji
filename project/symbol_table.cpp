@@ -10,7 +10,11 @@ int lastchar = -1;
 vector<Entry> entries_list;
 int lastentry = -1;
 int last_address=0;
-
+vector<string> current_identifiers_list;
+vector<int> current_declarations_indexes;
+vector<int> current_parameter_indexes;
+int current_procedure_index=-1;
+using namespace std;
 int
 lookup (char* name,int token_type)
 {
@@ -71,7 +75,7 @@ int insert_variable(string variable_name, int standard_type, bool is_array, int 
   if (visibility==GLOBAL)
     variable.token_type=GLOBAL_VARIABLE;
   else if (visibility==LOCAL)
-    variable.token_type=LOCAL_VARIABLE
+    variable.token_type=LOCAL_VARIABLE;
   variable.data_type=standard_type;
   variable.is_array_data_type=is_array;
   struct Number value;
@@ -121,11 +125,12 @@ int insert_variable(string variable_name, int standard_type, bool is_array, int 
     throw invalid_argument("Wrong value type");
   }
   lastentry++;
+  entries_list.push_back(variable);
   return lastentry;
 }
 
 void assign_procedure_to_local_variable(int variable_index, int procedure_index){
-      entries_list[variable_index].local_variable_function_index=procedure_index
+      entries_list[variable_index].local_variable_function_index=procedure_index;
 }
 
 int insert_procedure(string procedure_name,bool is_function, vector<int> arguments_indexes,
@@ -144,8 +149,8 @@ int insert_procedure(string procedure_name,bool is_function, vector<int> argumen
   procedure.token_type=PROCEDURE;
   procedure.is_function=is_function;
   procedure.arguments_indexes=arguments_indexes;
-  procedure.arguments_count=procedure.arguments_addresses.size();
-  rocedure.data_type=VOID;
+  procedure.arguments_count=procedure.arguments_indexes.size();
+  procedure.data_type=VOID;
   if (procedure.is_function){
 	  procedure.data_type=standard_return_type;
 	  procedure.is_array_data_type=is_array_return_type;
@@ -194,5 +199,6 @@ int insert_procedure(string procedure_name,bool is_function, vector<int> argumen
     }
   }
   lastentry++;
+  entries_list.push_back(procedure);
 return  lastentry;
 }

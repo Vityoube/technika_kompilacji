@@ -1,4 +1,3 @@
-
 %code requires{
   #include <stdio.h>
   #include <stdlib.h>
@@ -6,10 +5,14 @@
   #include <vector>
   #include <string.h>
   #include <string>
+  #include <cstring>
+  #include <stdexcept>
+  using namespace std;
   extern FILE* yyin;
   extern FILE* yyout;
-
-
+  typedef std::vector<std::string> Identifiers;
+  typedef std::vector<int> Indexes;
+  extern int yylex();
   struct Number {
   	int type;
   	union {
@@ -24,7 +27,6 @@
   extern FILE* yyout;
   FILE* open_assembly_file();
   #define BSIZE 128
-	using namespace std;
 	enum visibility { LOCAL, GLOBAL };
 	enum standard_type { INT_TYPE, REAL_TYPE,VOID };
 	enum Identifier { LOCAL_VARIABLE,GLOBAL_VARIABLE,VALUE,PROCEDURE,KEYWORD };
@@ -43,13 +45,20 @@
     int address;
     int local_variable_function_index;
 	};
+  struct Procedure{
+    string* name;
+    int address;
+  };
   struct Type {
     int standard_type;
     bool is_array;
     int first_index;
     int last_index;
   };
-
+  extern vector<string> current_identifiers_list;
+  extern vector<int> current_declarations_indexes;
+  extern vector<int> current_parameter_indexes;
+  extern int current_procedure_index;
 	extern vector<Entry> entries_list;
 	extern int lookup(char* name, int token_type);
 	extern int find_procedure(string name, vector<int> arguments_addresses, int return_type);
@@ -66,14 +75,15 @@
 %union {
 	  int token;
 	  int token_type;
-	  char * name;
+	  string* name;
 	  Number number;
 	  int address;
+    struct Procedure procedure;
 	  int index;
-    char * identifiers[1000];
+    vector<string> * identifiers;
     int standard_type;
-    int declarations_index[1000];
-    int arguments_indexes[1000];
+    vector<int> * declarations_indexes;
+    vector<int> * arguments_indexes;
     struct Type data_type;
  }
  %code provides{
@@ -81,25 +91,23 @@
   extern int yylex();
   FILE* open_pascal_file(char * filename);
   void close_pascal_file();
+
  }
-%{
-    int last_identifier=0;
-    int current_procedure_index=-1;
-%}
+
 %token NONE;
 %token DONE 0;
 %token <number> NUM;
 %token <name> ID;
 %token <name> IF "if";
+%token <name> WHILE "while";
 %token <name> THEN "then";
 %token <name> ELSE "else";
-%token <name> WHILE "while";
 %token <name> DO "do";
 %token <name> BEG "begin";
 %token <name> END "end";
 %token <name> VAR "var";
 %token <name> PROGRAM "program";
-%token <name>  FUN "function";
+%token <name> FUN "function";
 %token <name> PROC "procedure";
 %token <name> ARR "array";
 %token <name> OF "of";
@@ -113,70 +121,73 @@
 %token <name> RELOP;
 %token <name> '(' ')' ';' '.' '[' ']' ':' '\n'
 %token <name> LAB0
+%token <name> REAL_FUN
+%token <name> INT_FUN
 //%type <variable_identifier	> variable
 //%type <procedure> procedure_statement
 //%type <number> expression
-%type <identifiers> identifier_list
 %type <data_type> type
 %type <standard_type> standard_type
 %type <index> subprogram_head
-
+%{
+  int last_parameter=-1;
+%}
 %%
 
 
-program: PROGRAM ID '(' identifier_list ')' ';' global_declarations subprogram_declarations compound_statement '.'   {
-                                                                                                                    print_assembly(yyin,DONE,yylval);
+program: PROGRAM ID '(' input_output ')' ';' global_declarations subprogram_declarations compound_statement '.'   {
+                                                                                                                    print_assembly(DONE,yylval);
                                                                                                                     YYACCEPT;
                                                                                                                 }
 
 ;
-
+input_output: identifier_list {
+                                  current_identifiers_list.clear();
+                              }
 identifier_list: ID	{
-                      memset($$[last_identifier],0,strlen($1));
-                      strcpy($$[last_identifier],$1);
-                      last_identifier++;
+                      string identifier=*$1;
+                      current_identifiers_list.push_back(identifier);
                     }
                 | identifier_list ',' ID	{
-                                            memset($$[last_identifier],0,strlen($3));
-                                            strcpy($$[last_identifier],$3);
-                                            last_identifier++;
-                                            print_assembly()
+                                            string identifier=*$3;
+                                            current_identifiers_list.push_back(identifier);
                                           }
 ;
-global_declarations:
-                | global_declarations VAR identifier_list ':' type ';'   {
-                                                                            for (int i=0;i<last_identifier;i++){
-                                                                              string identifier($3[i]);
+global_declarations: global_declarations VAR identifier_list ':' type ';'   {
+                                                                            for (string identifier: current_identifiers_list){
                                                                               int p=find_global_variable(identifier);
                                                                               if(p==-1){
                                                                                 struct Type type=$5;
-                                                                                $<declarations_index>$[i]=insert_variable(identifier, type.standard_type,type.is_array,type.first_index,type.last_index,GLOBAL);
-                                                                                printf("global variable: %s",entries_list.at($<declarations_index>$[i]).name);
+                                                                                insert_variable(identifier, type.standard_type,type.is_array,type.first_index,type.last_index,GLOBAL);
+                                                                                printf("global variable: %s\n",identifier.c_str());
                                                                               } else {
-                                                                                yyerror("Variable %d is already defined.",identifier);
+                                                                                yyerror("Variable is already defined\n");
                                                                               }
-
                                                                             }
-                                                                            memset(&(yylval.identifiers[0]),0,sizeof(yylval.identifiers));
-                                                                            last_identifier=0;
+                                                                            current_identifiers_list.clear();
                                                                           }
+              | { print_assembly(LAB0,yylval); }
 ;
 local_declarations:
                 | local_declarations VAR identifier_list ':' type ';'   {
-                                                                            for (int i=0;i<last_identifier;i++){
-                                                                              string identifier($3[i]);
-                                                                              int p=find_local_variable(identifier, current_procedure_index);
-                                                                              if (p==-1){
-                                                                                struct Type type=$5;
-                                                                                $<declarations_index>$[i]=insert_variable(identifier, type.standard_type,type.is_array,type.first_index,type.last_index,LOCAL);
-                                                                                assign_procedure_to_local_variable($<declarations_index>$[i],current_procedure_index);
-                                                                                printf("local variable: %s",entries_list.at($<declarations_index>$[i]).name);
-                                                                              } else {
-                                                                                yyerror("Variable %d is already defined at this scope.",identifier);
+                                                                            struct Type type=$5; 
+                                                                            for (string identifier: current_identifiers_list){
+                                                                              if (current_parameter_indexes.empty()){
+                                                                                int current_parameter_index=insert_variable(identifier,type.standard_type,
+                                                                                  type.is_array,type.first_index,type.last_index,LOCAL);
+                                                                                current_parameter_indexes.push_back(current_parameter_index);
                                                                               }
+                                                                              else{
+                                                                                for (int current_parameter_index : current_parameter_indexes)
+                                                                                  if (identifier.compare(entries_list.at(current_parameter_index).name)==0)
+                                                                                    yyerror("Variable is already defined at this sope.\n");
+                                                                                int current_parameter_index=insert_variable(identifier,type.standard_type,
+                                                                                  type.is_array,type.first_index,type.last_index,LOCAL);
+                                                                                current_parameter_indexes.push_back(current_parameter_index);
+                                                                              }
+                                                                              printf("Local variable: %s\n",identifier.c_str());
                                                                             }
-                                                                            memset(&(yylval.identifiers[0]),0,sizeof(yylval.identifiers));
-                                                                            last_identifier=0;
+                                                                            current_identifiers_list.clear();
                                                                           }
 type: standard_type	{
 						            struct Type type;
@@ -215,43 +226,91 @@ subprogram_declaration: subprogram_head
 ;
 
 subprogram_head: FUN ID arguments ':' standard_type ';' {
-                                                            string function_name($2);
-                                                            vector<int> arguments_indexes;
-                                                            for (int i=0;i<last_identifier;i++){
-                                                              arguments_indexes.push_back($3[i]);
-                                                            }
-                                                            int p=find_procedure(function_name,arguments_indexes,$5);
+                                                            string function_name=*$2;
+                                                            int p=find_procedure(function_name,current_parameter_indexes,$5);
                                                             if (p==-1){
-                                                              current_function_index=insert_procedure(function_name,true,arguments_indexes,$5,false,0,0);
+                                                              current_procedure_index=insert_procedure(function_name,true,current_parameter_indexes,$5,false,0,0);
+                                                              $$=current_procedure_index;
+                                                              printf("Function: %s\n",function_name.c_str());
                                                             } else {
-                                                              yyerror("The function is already defined in the program.")
+                                                              yyerror("The function is already defined in the program.\n");
                                                             }
-                                                            memset(&(yylval.identifiers[0]),0,sizeof(yylval.identifiers));
-                                                            last_identifier=0;
-
+                                                            for (int argument_index : current_parameter_indexes)
+                                                              assign_procedure_to_local_variable(argument_index,current_procedure_index);
+                                                            current_identifiers_list.clear();
+                                                            current_parameter_indexes.clear();
+                                                            struct Procedure new_procedure;
+                                                            new_procedure.name=new string(function_name);
+                                                            new_procedure.address=entries_list.at($$).address;
+                                                            yylval.procedure=new_procedure;
+                                                            if ($5==INT_TYPE)
+                                                              print_assembly(INT_FUN,yylval);
+                                                            else if ($5=REAL_TYPE)
+                                                              print_assembly(REAL_FUN,yylval);
                                                         }
                 | PROC ID arguments ';' '\n'            {
-                                                            string procedure_name($2);
-                                                            vector<int> arguments_indexes;
-                                                            for (int i=0;i<last_identifier;i++)
-                                                              arguments_indexes.push_back($3[i]);
-                                                            int p=find_procedure(procedure_name,arguments_indexes,VOID);
-                                                            if (p==-1)
-                                                              current_function_index=insert_procedure(procedure_name,false,arguments_indexes,VOID,false,0,0);
-                                                            else
-                                                              yyerror("The procedure is already defined in the program.");
-                                                            memset(&(yylval.identifiers[0]),0,sizeof(yylval.identifiers));
-                                                            last_identifier=0;
+                                                            string procedure_name=*$2;
+                                                            int p=find_procedure(procedure_name,current_parameter_indexes,VOID);
+                                                            if (p==-1){
+                                                              current_procedure_index=insert_procedure(procedure_name,false,current_parameter_indexes,VOID,false,0,0);
+                                                              $$=current_procedure_index;
+                                                              printf("Procedure: %s\n",procedure_name.c_str());
+                                                            } else
+                                                              yyerror("The procedure is already defined in the program.\n");
+                                                            for (int argument_index : current_parameter_indexes)
+                                                              assign_procedure_to_local_variable(argument_index,current_procedure_index);
+                                                            current_identifiers_list.clear();
+                                                            current_parameter_indexes.clear();
+                                                            struct Procedure new_procedure;
+                                                            new_procedure.name=new string(procedure_name);
+                                                            new_procedure.address=entries_list.at($$).address;
+                                                            yylval.procedure=new_procedure;
+                                                            print_assembly(PROC,yylval);
                                                         }
 
 ;
 
-arguments: '(' parameter_list ')'
-           |
+arguments: '(' parameter_list ')' {
+                                  }
+           |                      {  }
 ;
 
-parameter_list: identifier_list ':' type
-                | parameter_list ';' identifier_list ':' type
+parameter_list: identifier_list ':' type  {
+                                              struct Type type=$3;
+                                              for (string identifier : current_identifiers_list){
+                                                if (current_parameter_indexes.empty()){
+                                                  int current_parameter_index=insert_variable(identifier,type.standard_type,type.is_array,type.first_index,type.last_index,LOCAL);
+                                                  current_parameter_indexes.push_back(current_parameter_index);
+                                                }
+                                                else{
+                                                  for (int current_parameter_index : current_parameter_indexes)
+                                                    if (identifier.compare(entries_list.at(current_parameter_index).name)==0)
+                                                      yyerror("Argument is already defined.\n");
+                                                  int current_parameter_index=insert_variable(identifier,type.standard_type,type.is_array,type.first_index,type.last_index,LOCAL);
+                                                  current_parameter_indexes.push_back(current_parameter_index);
+                                                }
+                                                printf("Function argument: %s\n",identifier.c_str());
+                                              }
+                                              current_identifiers_list.clear();
+                                          }
+                | parameter_list ';' identifier_list ':' type {
+                                                                struct Type type=$5;
+                                                                for (string identifier : current_identifiers_list){
+                                                                  if (current_parameter_indexes.empty()){
+                                                                    int current_parameter_index=insert_variable(identifier,type.standard_type,type.is_array,type.first_index,type.last_index,LOCAL);
+                                                                    current_parameter_indexes.push_back(current_parameter_index);
+                                                                  }else{
+                                                                    for (int current_parameter_index : current_parameter_indexes)
+                                                                      if (identifier.compare(entries_list.at(current_parameter_index).name)==0)
+                                                                          yyerror("Argument is already defined.\n");
+                                                                      int current_parameter_index=insert_variable(identifier  ,type.standard_type,type.is_array,
+                                                                        type.first_index,type.last_index,LOCAL);
+                                                                      current_parameter_indexes.push_back(current_parameter_index);
+                                                                    }
+                                                                    printf("Function argument: %s\n",identifier.c_str());
+                                                                }
+                                                                current_identifiers_list.clear();
+                                                              }
 ;
 
 compound_statement: BEG
@@ -355,10 +414,22 @@ void print_assembly(int token, YYSTYPE token_value){
 
   if (token==NUM){
 
+  }else if(token==INT_FUN) {
+      string function_name=*(token_value.procedure.name);
+      fprintf(yyout,"%s:\n",function_name.c_str());
+      fprintf(yyout,"\t\tenter.i\t#%d\n",token_value.procedure.address);
+  } else  if (token==REAL_FUN){
+    string function_name=*(token_value.procedure.name);
+    fprintf(yyout,"%s:\n",function_name.c_str());
+    fprintf(yyout,"\t\tenter.r\t#%d\n",token_value.procedure.address);
+  } else if(token==PROC){
+    string procedure_name=*(token_value.procedure.name);
+    fprintf(yyout,"%s:\n",procedure_name.c_str());
+    fprintf(yyout,"\t\tenter\t#%d\n",token_value.procedure.address);
   }else if (token==LAB0){
-    fprintf(yyout,"%s","\tjump.i\t\n");
+    fprintf(yyout,"%s","\t\tjump.i\t#lab0\n");
   }else if (token==DONE){
-    fprintf(yyout,"%s","\texit\n");
+    fprintf(yyout,"%s","\t\texit\n");
   }
 }
 
