@@ -93,7 +93,6 @@ int insert_variable(string variable_name, int standard_type, bool is_array, int 
     throw invalid_argument("Too long name for variable");
   struct Entry variable;
   variable.name=variable_name;
-  variable.address=last_address;
   variable.token=ID;
   if (visibility==GLOBAL)
     variable.token_type=GLOBAL_VARIABLE;
@@ -115,9 +114,13 @@ int insert_variable(string variable_name, int standard_type, bool is_array, int 
 		  		  switch (value.type){
 		  		   case INT_TYPE:
 		  		 	  value.integer=0;
+              variable.addresses.push_back(last_address);
+              last_address+=4;
 		  		 	  break;
 		  		   case REAL_TYPE:
 		  		 	  value.real=0.0;
+              variable.addresses.push_back(last_address);
+              last_address+=8;
 		  		 	  break;
 		  		   default:
 		  		 	  throw invalid_argument("Wrong value type");
@@ -134,24 +137,20 @@ int insert_variable(string variable_name, int standard_type, bool is_array, int 
 	  switch (value.type){
 	  case INT_TYPE:
 		  value.integer=0;
+      variable.addresses.push_back(last_address);
+      variable.addresses.push_back(last_address);
+      last_address+=4;
 		  break;
 	  case REAL_TYPE:
 		  value.real=0.0;
+      variable.addresses.push_back(last_address);
+      variable.addresses.push_back(last_address);
+      last_address+=8;
 		  break;
 	  default:
 		  throw invalid_argument("Wrong value type");
 	  }
 	  variable.values.push_back(value);
-  }
-  switch (variable.data_type){
-  case INT_TYPE:
-      last_address+=4;
-      break;
-  case REAL_TYPE:
-      last_address+=8;
-      break;
-  default:
-    throw invalid_argument("Wrong value type");
   }
   lastentry++;
   entries_list.push_back(variable);
@@ -174,7 +173,6 @@ int insert_procedure(string procedure_name,bool is_function, vector<int> argumen
   struct Entry procedure;
   procedure.name=procedure_name;
   procedure.token=ID;
-  procedure.address=last_address;
   procedure.token_type=PROCEDURE;
   procedure.is_function=is_function;
   procedure.arguments_indexes=arguments_indexes;
@@ -193,9 +191,13 @@ int insert_procedure(string procedure_name,bool is_function, vector<int> argumen
 				  switch (procedure.data_type){
 				  case INT_TYPE:
 					  value.integer=0;
+            procedure.addresses.push_back(last_address);
+            last_address+=4;
 					  break;
 				  case REAL_TYPE:
 					  value.real=0.0;
+            procedure.addresses.push_back(last_address);
+            last_address+=8;
 					  break;
 				  default:
 					  throw invalid_argument("Wrong value type");
@@ -211,23 +213,22 @@ int insert_procedure(string procedure_name,bool is_function, vector<int> argumen
 		  switch (procedure.data_type){
 		  				  case INT_TYPE:
 		  					  value.integer=0;
+                  procedure.addresses.push_back(last_address);
+                  last_address+=4;
 		  					  break;
 		  				  case REAL_TYPE:
 		  					  value.real=0.0;
+                  procedure.addresses.push_back(last_address);
+                  last_address+=8;
 		  					  break;
 		  				  default:
 		  					  throw invalid_argument("Wrong value type");
 		  				  }
 		  				  procedure.values.push_back(value);
 	  }
-    switch(procedure.data_type){
-      case INT_TYPE:
-        last_address+=4;
-        break;
-      case REAL_TYPE:
-        last_address+=8;
-        break;
-    }
+    insert_variable(procedure_name,standard_return_type,is_array_return_type,first_index,last_index,LOCAL);
+  } else{
+    last_address+=4;
   }
   lastentry++;
   entries_list.push_back(procedure);

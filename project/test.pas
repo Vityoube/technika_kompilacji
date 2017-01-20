@@ -9,5 +9,5 @@ procedure p;
 begin
 end;
 begin
-p;
+p
 end.

@@ -72,6 +72,7 @@ extern int yydebug;
   #define BSIZE 128
 	enum visibility { LOCAL, GLOBAL,ARG,TEMPORARY };
 	enum standard_type { INT_TYPE, REAL_TYPE,VOID };
+  enum assign_types { CONSTANT_ASSIGN, VARIABLE_ASSIGN };
 	enum Identifier { LOCAL_VARIABLE,GLOBAL_VARIABLE,VALUE,PROCEDURE,KEYWORD,TEMPORARY_VARIABLE,ARGUMENT };
 	struct Entry{
 	  string name;
@@ -85,7 +86,7 @@ extern int yydebug;
     vector<int> arguments_indexes;
     int arguments_count;
 	  bool is_function;
-    int address;
+    vector<int> addresses;
     int local_variable_function_index;
 	};
   struct Procedure{
@@ -97,10 +98,6 @@ extern int yydebug;
     bool is_array;
     int first_index;
     int last_index;
-  };
-  struct Statement{
-    int statement_type;
-
   };
   extern vector<string> current_identifiers_list;
   extern vector<int> current_declarations_indexes;
@@ -122,7 +119,7 @@ extern int yydebug;
 		);
 	extern void init();
 
-#line 126 "parser.hpp" /* yacc.c:1909  */
+#line 123 "parser.hpp" /* yacc.c:1909  */
 
 /* Token type.  */
 #ifndef YYTOKENTYPE
@@ -160,7 +157,8 @@ extern int yydebug;
     PROC_CALL = 285,
     RETURN = 286,
     NEW_BLOCK = 287,
-    PROC_CALL_WITH_ARGUMENTS = 288
+    PROC_CALL_WITH_ARGUMENTS = 288,
+    MOV = 289
   };
 #endif
 
@@ -169,7 +167,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 82 "parser.yy" /* yacc.c:1909  */
+#line 79 "parser.yy" /* yacc.c:1909  */
 
 	  int token;
 	  int token_type;
@@ -185,9 +183,16 @@ union YYSTYPE
     struct Type data_type;
     vector<Number> * expression_values;
     vector<Entry> * entries;
+    struct Entry * entry;
+    struct Mov {
+      int assign_type;
+      struct Entry * entry_to_assign;
+      struct Entry * assigned_entry;
+      vector<int> * changed_values_indexes;
+    } mov;
  
 
-#line 191 "parser.hpp" /* yacc.c:1909  */
+#line 196 "parser.hpp" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;
@@ -200,7 +205,7 @@ extern YYSTYPE yylval;
 
 int yyparse (void);
 /* "%code provides" blocks.  */
-#line 98 "parser.yy" /* yacc.c:1909  */
+#line 102 "parser.yy" /* yacc.c:1909  */
 
   void print_assembly(int token, YYSTYPE token_value);
   extern int yylex();
@@ -209,6 +214,6 @@ int yyparse (void);
 
  
 
-#line 213 "parser.hpp" /* yacc.c:1909  */
+#line 218 "parser.hpp" /* yacc.c:1909  */
 
 #endif /* !YY_YY_PARSER_HPP_INCLUDED  */

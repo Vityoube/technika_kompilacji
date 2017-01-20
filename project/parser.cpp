@@ -125,6 +125,7 @@ extern int yydebug;
   #define BSIZE 128
 	enum visibility { LOCAL, GLOBAL,ARG,TEMPORARY };
 	enum standard_type { INT_TYPE, REAL_TYPE,VOID };
+  enum assign_types { CONSTANT_ASSIGN, VARIABLE_ASSIGN };
 	enum Identifier { LOCAL_VARIABLE,GLOBAL_VARIABLE,VALUE,PROCEDURE,KEYWORD,TEMPORARY_VARIABLE,ARGUMENT };
 	struct Entry{
 	  string name;
@@ -138,7 +139,7 @@ extern int yydebug;
     vector<int> arguments_indexes;
     int arguments_count;
 	  bool is_function;
-    int address;
+    vector<int> addresses;
     int local_variable_function_index;
 	};
   struct Procedure{
@@ -150,10 +151,6 @@ extern int yydebug;
     bool is_array;
     int first_index;
     int last_index;
-  };
-  struct Statement{
-    int statement_type;
-
   };
   extern vector<string> current_identifiers_list;
   extern vector<int> current_declarations_indexes;
@@ -175,7 +172,7 @@ extern int yydebug;
 		);
 	extern void init();
 
-#line 179 "parser.cpp" /* yacc.c:355  */
+#line 176 "parser.cpp" /* yacc.c:355  */
 
 /* Token type.  */
 #ifndef YYTOKENTYPE
@@ -213,7 +210,8 @@ extern int yydebug;
     PROC_CALL = 285,
     RETURN = 286,
     NEW_BLOCK = 287,
-    PROC_CALL_WITH_ARGUMENTS = 288
+    PROC_CALL_WITH_ARGUMENTS = 288,
+    MOV = 289
   };
 #endif
 
@@ -222,7 +220,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 82 "parser.yy" /* yacc.c:355  */
+#line 79 "parser.yy" /* yacc.c:355  */
 
 	  int token;
 	  int token_type;
@@ -238,9 +236,16 @@ union YYSTYPE
     struct Type data_type;
     vector<Number> * expression_values;
     vector<Entry> * entries;
+    struct Entry * entry;
+    struct Mov {
+      int assign_type;
+      struct Entry * entry_to_assign;
+      struct Entry * assigned_entry;
+      vector<int> * changed_values_indexes;
+    } mov;
  
 
-#line 244 "parser.cpp" /* yacc.c:355  */
+#line 249 "parser.cpp" /* yacc.c:355  */
 };
 
 typedef union YYSTYPE YYSTYPE;
@@ -253,7 +258,7 @@ extern YYSTYPE yylval;
 
 int yyparse (void);
 /* "%code provides" blocks.  */
-#line 98 "parser.yy" /* yacc.c:355  */
+#line 102 "parser.yy" /* yacc.c:355  */
 
   void print_assembly(int token, YYSTYPE token_value);
   extern int yylex();
@@ -262,19 +267,21 @@ int yyparse (void);
 
  
 
-#line 266 "parser.cpp" /* yacc.c:355  */
+#line 271 "parser.cpp" /* yacc.c:355  */
 
 #endif /* !YY_YY_PARSER_HPP_INCLUDED  */
 
 /* Copy the second part of user declarations.  */
-#line 146 "parser.yy" /* yacc.c:358  */
+#line 152 "parser.yy" /* yacc.c:358  */
 
   int last_parameter=-1;
   bool local_scope=false;
   int compound_statements_complexity=0;
   int current_block=0;
+  int current_array_index=-1;
+  int current_register=-1;
 
-#line 278 "parser.cpp" /* yacc.c:358  */
+#line 285 "parser.cpp" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -516,10 +523,10 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  4
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   115
+#define YYLAST   116
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  44
+#define YYNTOKENS  45
 /* YYNNTS -- Number of nonterminals.  */
 #define YYNNTS  24
 /* YYNRULES -- Number of rules.  */
@@ -530,7 +537,7 @@ union yyalloc
 /* YYTRANSLATE[YYX] -- Symbol number corresponding to YYX as returned
    by yylex, with out-of-bounds checking.  */
 #define YYUNDEFTOK  2
-#define YYMAXUTOK   289
+#define YYMAXUTOK   290
 
 #define YYTRANSLATE(YYX)                                                \
   ((unsigned int) (YYX) <= YYMAXUTOK ? yytranslate[YYX] : YYUNDEFTOK)
@@ -543,7 +550,7 @@ static const yytype_uint8 yytranslate[] =
       34,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-      27,    28,     2,     2,    42,     2,    30,     2,     2,     2,
+      27,    28,     2,     2,    43,     2,    30,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,    33,    29,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -567,19 +574,20 @@ static const yytype_uint8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     1,     2,     3,     4,
        5,     6,     7,     8,     9,    10,    11,    12,    13,    14,
       15,    16,    17,    18,    19,    20,    21,    22,    23,    24,
-      25,    26,    35,    36,    37,    38,    39,    40,    41,    43
+      25,    26,    35,    36,    37,    38,    39,    40,    41,    42,
+      44
 };
 
 #if YYDEBUG
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   155,   155,   161,   164,   168,   173,   186,   188,   189,
-     209,   217,   229,   230,   233,   234,   238,   250,   273,   295,
-     296,   299,   319,   341,   347,   352,   354,   355,   359,   374,
-     387,   388,   389,   393,   398,   404,   409,   444,   445,   448,
-     449,   453,   454,   455,   456,   460,   461,   465,   466,   468,
-     469,   470
+       0,   163,   163,   169,   172,   176,   181,   194,   196,   197,
+     217,   225,   237,   238,   241,   242,   246,   258,   281,   303,
+     304,   307,   327,   349,   355,   360,   362,   363,   367,   382,
+     395,   396,   397,   401,   417,   455,   460,   492,   493,   496,
+     497,   501,   502,   503,   504,   508,   509,   513,   514,   516,
+     527,   528
 };
 #endif
 
@@ -594,13 +602,14 @@ static const char *const yytname[] =
   "\"of\"", "\"integer\"", "\"real\"", "\"not\"", "\"or\"", "SIGN",
   "ASSIGNOP", "MULOP", "RELOP", "'('", "')'", "';'", "'.'", "'['", "']'",
   "':'", "'\\n'", "START", "REAL_FUN", "INT_FUN", "PROC_CALL", "RETURN",
-  "NEW_BLOCK", "PROC_CALL_WITH_ARGUMENTS", "','", "\"..\"", "$accept",
-  "program", "input_output", "identifier_list", "global_declarations",
-  "local_declarations", "type", "standard_type", "subprogram_declarations",
-  "subprogram_declaration", "subprogram_head", "arguments",
-  "parameter_list", "compound_statement", "optional_statements",
-  "statement_list", "statement", "variable", "procedure_statement",
-  "expression_list", "expression", "simple_expression", "term", "factor", YY_NULLPTR
+  "NEW_BLOCK", "PROC_CALL_WITH_ARGUMENTS", "MOV", "','", "\"..\"",
+  "$accept", "program", "input_output", "identifier_list",
+  "global_declarations", "local_declarations", "type", "standard_type",
+  "subprogram_declarations", "subprogram_declaration", "subprogram_head",
+  "arguments", "parameter_list", "compound_statement",
+  "optional_statements", "statement_list", "statement", "variable",
+  "procedure_statement", "expression_list", "expression",
+  "simple_expression", "term", "factor", YY_NULLPTR
 };
 #endif
 
@@ -613,7 +622,7 @@ static const yytype_uint16 yytoknum[] =
      265,   266,   267,   268,   269,   270,   271,   272,   273,   274,
      275,   276,   277,   278,   279,   280,   281,    40,    41,    59,
       46,    91,    93,    58,    10,   282,   283,   284,   285,   286,
-     287,   288,    44,   289
+     287,   288,   289,    44,   290
 };
 # endif
 
@@ -631,18 +640,18 @@ static const yytype_uint16 yytoknum[] =
      STATE-NUM.  */
 static const yytype_int8 yypact[] =
 {
-      30,     9,    17,    21,   -87,    49,   -87,    29,    25,    40,
-      69,   -87,   -87,    72,    49,    55,   -20,    57,    81,    83,
-      63,   -87,    60,    58,    28,    24,    24,   -87,    79,    64,
-     -87,    70,   -87,    68,    68,   -87,    47,   -87,    65,   -87,
-     -87,    71,   -87,    24,    24,   -87,   -12,     3,     3,    24,
-     -87,    89,    50,    73,   -87,    91,   -87,    57,    24,    49,
-      66,    74,    49,   -87,    98,   -87,   -19,   -87,    75,    24,
-     -87,    73,    76,    57,     3,     3,    24,     3,    57,   -87,
-     -87,     0,    51,    62,   -87,     1,    67,   -87,    24,   -87,
-     -10,   -87,    96,    73,    73,    61,   -87,   -87,    58,   -87,
-      49,    77,    58,   104,   -87,   -87,    57,   -87,     8,   -87,
-      80,    82,   -87,    58,   -87,    93,   -87,    62,   -87
+       8,    43,    60,    44,   -87,    52,   -87,    54,    32,    55,
+      78,   -87,   -87,    72,    52,    48,   -24,    61,    81,    83,
+      62,   -87,    63,    57,    31,    24,    24,   -87,    80,    65,
+     -87,    66,   -87,    68,    68,   -87,    30,   -87,    67,   -87,
+     -87,    70,   -87,    24,    24,   -87,    23,     3,     3,    24,
+     -87,    88,    47,    75,   -87,    87,   -87,    61,    24,    52,
+      69,    74,    52,   -87,    97,   -87,   -11,   -87,    73,    24,
+     -87,    75,    76,    61,     3,     3,    24,     3,    61,   -87,
+     -87,   -20,   -14,    59,   -87,     1,    64,   -87,    24,   -87,
+     -10,   -87,    98,    75,    75,    58,   -87,   -87,    57,   -87,
+      52,    77,    57,   105,   -87,   -87,    61,   -87,     9,   -87,
+      82,    84,   -87,    57,   -87,    92,   -87,    59,   -87
 };
 
   /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -668,8 +677,8 @@ static const yytype_uint8 yydefact[] =
 static const yytype_int8 yypgoto[] =
 {
      -87,   -87,   -87,   -13,   -87,   -87,   -86,   -78,   -87,   -87,
-     -87,    78,   -87,    -5,   -87,   -87,   -53,   -17,   -87,    44,
-     -23,    39,   -37,   -41
+     -87,    79,   -87,    -5,   -87,   -87,   -53,   -17,   -87,    45,
+     -23,    36,   -37,   -41
 };
 
   /* YYDEFGOTO[NTERM-NUM].  */
@@ -685,63 +694,63 @@ static const yytype_int8 yydefgoto[] =
      number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int8 yytable[] =
 {
-      31,    16,    51,    55,    79,   101,    70,    45,    46,    87,
-      22,    71,   107,    23,     3,    69,   110,     4,   105,    44,
-      92,    68,    10,    88,    47,    97,    72,   116,    45,    46,
-      49,    63,    88,    98,   102,    80,    96,    93,    94,   118,
-      31,   113,    10,    10,     1,    47,    81,    48,     5,    85,
-      10,    49,   -33,   112,     6,    43,    31,     9,    17,    44,
-      62,    31,    24,    25,    26,   104,    17,    10,    17,    11,
-      18,    19,    74,    75,    12,    38,    76,    39,    40,    99,
-     100,    39,    40,    74,    75,    14,    33,   108,    34,    31,
-      37,    56,    35,    57,    58,    59,    64,    73,    77,    83,
-      65,    78,    86,    84,    91,   106,   109,    89,   111,   114,
-     103,   117,    61,    90,   115,    95
+      31,    16,    51,    55,    79,   101,    70,    45,    46,    23,
+      22,    71,   107,    98,    99,   100,   110,    87,   105,    10,
+      92,    68,     1,    10,    47,    97,    72,   116,    45,    46,
+      49,    63,    88,    88,   102,    80,    96,    93,    94,   118,
+      31,    17,   113,    62,    10,    47,    81,    48,     3,    85,
+      69,    49,    10,   112,    44,   -33,    31,     6,    43,    17,
+       4,    31,    44,    18,    19,   104,    24,    25,    26,    74,
+      75,     5,    17,    76,    38,    10,    39,    40,    39,    40,
+      74,    75,     9,    12,    11,    14,    33,   108,    34,    31,
+      58,    35,    56,    37,    57,    59,    73,    78,    64,    65,
+      77,    86,    83,    84,    91,    89,   109,   106,   103,   111,
+     117,   114,    95,    61,    90,     0,   115
 };
 
-static const yytype_uint8 yycheck[] =
+static const yytype_int8 yycheck[] =
 {
-      17,    14,    25,    26,    57,    83,    47,     4,     5,    28,
-      15,    48,    98,    33,     5,    27,   102,     0,    28,    31,
-      73,    44,    42,    42,    21,    78,    49,   113,     4,     5,
-      27,    36,    42,    33,    33,    58,    77,    74,    75,   117,
-      57,    33,    42,    42,    14,    21,    59,    23,    27,    62,
-      42,    27,    24,   106,     5,    27,    73,    28,    11,    31,
-      13,    78,     5,     6,     7,    88,    11,    42,    11,    29,
-      15,    16,    22,    23,     5,    17,    26,    19,    20,    28,
-      29,    19,    20,    22,    23,    13,     5,   100,     5,   106,
-      30,    12,    29,    29,    24,    27,    31,     8,    25,    33,
-      29,    10,     4,    29,    28,     9,    29,    32,     4,    29,
-      43,    18,    34,    69,    32,    76
+      17,    14,    25,    26,    57,    83,    47,     4,     5,    33,
+      15,    48,    98,    33,    28,    29,   102,    28,    28,    43,
+      73,    44,    14,    43,    21,    78,    49,   113,     4,     5,
+      27,    36,    43,    43,    33,    58,    77,    74,    75,   117,
+      57,    11,    33,    13,    43,    21,    59,    23,     5,    62,
+      27,    27,    43,   106,    31,    24,    73,     5,    27,    11,
+       0,    78,    31,    15,    16,    88,     5,     6,     7,    22,
+      23,    27,    11,    26,    17,    43,    19,    20,    19,    20,
+      22,    23,    28,     5,    29,    13,     5,   100,     5,   106,
+      24,    29,    12,    30,    29,    27,     8,    10,    31,    29,
+      25,     4,    33,    29,    28,    32,    29,     9,    44,     4,
+      18,    29,    76,    34,    69,    -1,    32
 };
 
   /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
      symbol of state STATE-NUM.  */
 static const yytype_uint8 yystos[] =
 {
-       0,    14,    45,     5,     0,    27,     5,    46,    47,    28,
-      42,    29,     5,    48,    13,    52,    47,    11,    15,    16,
-      53,    54,    57,    33,     5,     6,     7,    57,    58,    59,
-      60,    61,    62,     5,     5,    29,    49,    30,    17,    19,
-      20,    50,    51,    27,    31,     4,     5,    21,    23,    27,
-      61,    64,    65,    66,    67,    64,    12,    29,    24,    27,
-      55,    55,    13,    57,    31,    29,    63,    64,    64,    27,
-      67,    66,    64,     8,    22,    23,    26,    25,    10,    60,
-      64,    47,    56,    33,    29,    47,     4,    28,    42,    32,
-      63,    28,    60,    66,    66,    65,    67,    60,    33,    28,
-      29,    51,    33,    43,    64,    28,     9,    50,    47,    29,
-      50,     4,    60,    33,    29,    32,    50,    18,    51
+       0,    14,    46,     5,     0,    27,     5,    47,    48,    28,
+      43,    29,     5,    49,    13,    53,    48,    11,    15,    16,
+      54,    55,    58,    33,     5,     6,     7,    58,    59,    60,
+      61,    62,    63,     5,     5,    29,    50,    30,    17,    19,
+      20,    51,    52,    27,    31,     4,     5,    21,    23,    27,
+      62,    65,    66,    67,    68,    65,    12,    29,    24,    27,
+      56,    56,    13,    58,    31,    29,    64,    65,    65,    27,
+      68,    67,    65,     8,    22,    23,    26,    25,    10,    61,
+      65,    48,    57,    33,    29,    48,     4,    28,    43,    32,
+      64,    28,    61,    67,    67,    66,    68,    61,    33,    28,
+      29,    52,    33,    44,    65,    28,     9,    51,    48,    29,
+      51,     4,    61,    33,    29,    32,    51,    18,    52
 };
 
   /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
 static const yytype_uint8 yyr1[] =
 {
-       0,    44,    45,    46,    47,    47,    48,    48,    49,    49,
-      50,    50,    51,    51,    52,    52,    53,    54,    54,    55,
-      55,    56,    56,    57,    58,    58,    59,    59,    60,    60,
-      60,    60,    60,    61,    61,    62,    62,    63,    63,    64,
-      64,    65,    65,    65,    65,    66,    66,    67,    67,    67,
-      67,    67
+       0,    45,    46,    47,    48,    48,    49,    49,    50,    50,
+      51,    51,    52,    52,    53,    53,    54,    55,    55,    56,
+      56,    57,    57,    58,    59,    59,    60,    60,    61,    61,
+      61,    61,    61,    62,    62,    63,    63,    64,    64,    65,
+      65,    66,    66,    66,    66,    67,    67,    68,    68,    68,
+      68,    68
 };
 
   /* YYR2[YYN] -- Number of symbols on the right hand side of rule YYN.  */
@@ -1429,42 +1438,42 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 155 "parser.yy" /* yacc.c:1646  */
+#line 163 "parser.yy" /* yacc.c:1646  */
     {
                                                                                                                     print_assembly(DONE,yylval);
                                                                                                                     YYACCEPT;
                                                                                                                 }
-#line 1438 "parser.cpp" /* yacc.c:1646  */
+#line 1447 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 3:
-#line 161 "parser.yy" /* yacc.c:1646  */
+#line 169 "parser.yy" /* yacc.c:1646  */
     {
                                   current_identifiers_list.clear();
                               }
-#line 1446 "parser.cpp" /* yacc.c:1646  */
+#line 1455 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 4:
-#line 164 "parser.yy" /* yacc.c:1646  */
+#line 172 "parser.yy" /* yacc.c:1646  */
     {
                       string identifier=*(yyvsp[0].name);
                       current_identifiers_list.push_back(identifier);
                     }
-#line 1455 "parser.cpp" /* yacc.c:1646  */
+#line 1464 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 5:
-#line 168 "parser.yy" /* yacc.c:1646  */
+#line 176 "parser.yy" /* yacc.c:1646  */
     {
                                             string identifier=*(yyvsp[0].name);
                                             current_identifiers_list.push_back(identifier);
                                           }
-#line 1464 "parser.cpp" /* yacc.c:1646  */
+#line 1473 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 6:
-#line 173 "parser.yy" /* yacc.c:1646  */
+#line 181 "parser.yy" /* yacc.c:1646  */
     {
                                                                             for (string identifier: current_identifiers_list){
                                                                               int p=find_global_variable(identifier);
@@ -1478,17 +1487,17 @@ yyreduce:
                                                                             }
                                                                             current_identifiers_list.clear();
                                                                           }
-#line 1482 "parser.cpp" /* yacc.c:1646  */
+#line 1491 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 7:
-#line 186 "parser.yy" /* yacc.c:1646  */
+#line 194 "parser.yy" /* yacc.c:1646  */
     { print_assembly(START,yylval); }
-#line 1488 "parser.cpp" /* yacc.c:1646  */
+#line 1497 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 9:
-#line 189 "parser.yy" /* yacc.c:1646  */
+#line 197 "parser.yy" /* yacc.c:1646  */
     {
                                                                             struct Type type=(yyvsp[-1].data_type);
                                                                             for (string identifier: current_identifiers_list){
@@ -1500,7 +1509,7 @@ yyreduce:
                                                                               else{
                                                                                 for (int current_parameter_index : current_parameter_indexes)
                                                                                   if (identifier.compare(entries_list.at(current_parameter_index).name)==0)
-                                                                                    yyerror("Variable is already defined at this sope.\n");
+                                                                                    yyerror("Variable is already defined at this scope.\n");
                                                                                 int current_parameter_index=insert_variable(identifier,type.standard_type,
                                                                                   type.is_array,type.first_index,type.last_index,LOCAL);
                                                                                 current_parameter_indexes.push_back(current_parameter_index);
@@ -1509,11 +1518,11 @@ yyreduce:
                                                                             }
                                                                             current_identifiers_list.clear();
                                                                           }
-#line 1513 "parser.cpp" /* yacc.c:1646  */
+#line 1522 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 10:
-#line 209 "parser.yy" /* yacc.c:1646  */
+#line 217 "parser.yy" /* yacc.c:1646  */
     {
 						            struct Type type;
                         type.standard_type=(yyvsp[0].standard_type);
@@ -1522,11 +1531,11 @@ yyreduce:
                         type.last_index=0;
                         (yyval.data_type)=type;
 					          }
-#line 1526 "parser.cpp" /* yacc.c:1646  */
+#line 1535 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 11:
-#line 217 "parser.yy" /* yacc.c:1646  */
+#line 225 "parser.yy" /* yacc.c:1646  */
     {
                                                       struct Type type;
                                                       type.standard_type=(yyvsp[0].standard_type);
@@ -1537,23 +1546,23 @@ yyreduce:
                                                       type.last_index=last_index_NUM.integer;
                                                       (yyval.data_type)=type;
       												                    }
-#line 1541 "parser.cpp" /* yacc.c:1646  */
+#line 1550 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 12:
-#line 229 "parser.yy" /* yacc.c:1646  */
+#line 237 "parser.yy" /* yacc.c:1646  */
     { (yyval.standard_type)=INT_TYPE;  }
-#line 1547 "parser.cpp" /* yacc.c:1646  */
+#line 1556 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 13:
-#line 230 "parser.yy" /* yacc.c:1646  */
+#line 238 "parser.yy" /* yacc.c:1646  */
     { (yyval.standard_type)=REAL_TYPE; }
-#line 1553 "parser.cpp" /* yacc.c:1646  */
+#line 1562 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 16:
-#line 240 "parser.yy" /* yacc.c:1646  */
+#line 248 "parser.yy" /* yacc.c:1646  */
     {
                                               current_procedure_index=-1;
                                               current_parameter_indexes.clear();
@@ -1561,11 +1570,11 @@ yyreduce:
                                               local_scope=false;
                                               print_assembly(RETURN,yylval);
                                              }
-#line 1565 "parser.cpp" /* yacc.c:1646  */
+#line 1574 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 17:
-#line 250 "parser.yy" /* yacc.c:1646  */
+#line 258 "parser.yy" /* yacc.c:1646  */
     {
                                                             string function_name=*(yyvsp[-4].name);
                                                             int p=find_procedure(function_name,current_parameter_indexes,(yyvsp[-1].standard_type));
@@ -1581,7 +1590,7 @@ yyreduce:
                                                             current_identifiers_list.clear();
                                                             struct Procedure new_procedure;
                                                             new_procedure.name=new string(function_name);
-                                                            new_procedure.address=entries_list.at((yyval.index)).address;
+                                                            new_procedure.address=entries_list.at((yyval.index)).addresses.at(0);
                                                             yylval.procedure=new_procedure;
                                                             if ((yyvsp[-1].standard_type)==INT_TYPE)
                                                               print_assembly(INT_FUN,yylval);
@@ -1589,11 +1598,11 @@ yyreduce:
                                                               print_assembly(REAL_FUN,yylval);
                                                             local_scope=true;
                                                         }
-#line 1593 "parser.cpp" /* yacc.c:1646  */
+#line 1602 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 18:
-#line 273 "parser.yy" /* yacc.c:1646  */
+#line 281 "parser.yy" /* yacc.c:1646  */
     {
                                                             string procedure_name=*(yyvsp[-2].name);
                                                             int p=find_procedure(procedure_name,current_parameter_indexes,VOID);
@@ -1608,22 +1617,22 @@ yyreduce:
                                                             current_identifiers_list.clear();
                                                             struct Procedure new_procedure;
                                                             new_procedure.name=new string(procedure_name);
-                                                            new_procedure.address=entries_list.at((yyval.index)).address;
+                                                            new_procedure.address=entries_list.at((yyval.index)).addresses.at(0);
                                                             yylval.procedure=new_procedure;
                                                             print_assembly(PROC,yylval);
                                                             local_scope=true;
                                                         }
-#line 1617 "parser.cpp" /* yacc.c:1646  */
+#line 1626 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 20:
-#line 296 "parser.yy" /* yacc.c:1646  */
+#line 304 "parser.yy" /* yacc.c:1646  */
     {  }
-#line 1623 "parser.cpp" /* yacc.c:1646  */
+#line 1632 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 21:
-#line 299 "parser.yy" /* yacc.c:1646  */
+#line 307 "parser.yy" /* yacc.c:1646  */
     {
                                               struct Type type=(yyvsp[0].data_type);
                                               for (string identifier : current_identifiers_list){
@@ -1644,11 +1653,11 @@ yyreduce:
                                               }
                                               current_identifiers_list.clear();
                                           }
-#line 1648 "parser.cpp" /* yacc.c:1646  */
+#line 1657 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 22:
-#line 319 "parser.yy" /* yacc.c:1646  */
+#line 327 "parser.yy" /* yacc.c:1646  */
     {
                                                                 struct Type type=(yyvsp[0].data_type);
                                                                 for (string identifier : current_identifiers_list){
@@ -1670,27 +1679,27 @@ yyreduce:
                                                                 }
                                                                 current_identifiers_list.clear();
                                                               }
-#line 1674 "parser.cpp" /* yacc.c:1646  */
+#line 1683 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 23:
-#line 343 "parser.yy" /* yacc.c:1646  */
+#line 351 "parser.yy" /* yacc.c:1646  */
     { compound_statements_complexity--; }
-#line 1680 "parser.cpp" /* yacc.c:1646  */
+#line 1689 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 24:
-#line 347 "parser.yy" /* yacc.c:1646  */
+#line 355 "parser.yy" /* yacc.c:1646  */
     {
                                     if (!local_scope && compound_statements_complexity==0)
                                       print_assembly(NEW_BLOCK,yylval);
                                     compound_statements_complexity++;
                                    }
-#line 1690 "parser.cpp" /* yacc.c:1646  */
+#line 1699 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 28:
-#line 359 "parser.yy" /* yacc.c:1646  */
+#line 367 "parser.yy" /* yacc.c:1646  */
     {
 												//int variable_index=find_variable($1);
 												//if (strcmp(variables[variable_index].type,"integer")==0)
@@ -1705,11 +1714,11 @@ yyreduce:
 														//variables[variable_index].realval=(double)$3;
 												//print_assembly(yyin,ASSIGNOP,yylval.number.type);
 											}
-#line 1709 "parser.cpp" /* yacc.c:1646  */
+#line 1718 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 29:
-#line 374 "parser.yy" /* yacc.c:1646  */
+#line 382 "parser.yy" /* yacc.c:1646  */
     {
                                   struct Entry procedure=entries_list.at((yyvsp[0].index));
                                   if (procedure.arguments_count==0){
@@ -1723,40 +1732,83 @@ yyreduce:
                                     yylval.entries=new vector<Entry>();
                                   }
                                 }
-#line 1727 "parser.cpp" /* yacc.c:1646  */
+#line 1736 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 33:
-#line 393 "parser.yy" /* yacc.c:1646  */
+#line 401 "parser.yy" /* yacc.c:1646  */
     {
-                  int identifier_index;
-					       //int variable_index=find_variable($1);
-					       //$$=variables_list[variable_index];
+                  string variable_name=*(yyvsp[0].name);
+                  int variable_index=-1;
+                  int global_variable_index=-1;
+                  if (local_scope){
+                      int local_variable_index=find_local_variable(variable_name,current_procedure_index);
+                      variable_index=local_variable_index;
+                  }
+                  if (variable_index==-1){
+                    global_variable_index=find_global_variable(variable_name);
+                    variable_index=global_variable_index;
+                  }
+                  if (global_variable_index==-1)
+                    yyerror("Variable is not declared");
+                  (yyval.entry)=new Entry(entries_list.at(variable_index));
 				}
-#line 1737 "parser.cpp" /* yacc.c:1646  */
+#line 1757 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 34:
-#line 398 "parser.yy" /* yacc.c:1646  */
+#line 417 "parser.yy" /* yacc.c:1646  */
     {
-          								//int variable_index=find_variable($1);
-										//$$=variable_index;
-									}
-#line 1746 "parser.cpp" /* yacc.c:1646  */
+                                    string variable_name=*(yyvsp[-3].name);
+                                    struct Entry array_index=*(yyvsp[-1].entry);
+                                    int variable_index=-1;
+                                    int global_variable_index=-1;
+                                    if (local_scope){
+                                        int local_variable_index=find_local_variable(variable_name,current_procedure_index);
+                                        variable_index=local_variable_index;
+                                    }
+                                    if (variable_index==-1){
+                                      global_variable_index=find_global_variable(variable_name);
+                                      variable_index=global_variable_index;
+                                    }
+                                    if (global_variable_index==-1)
+                                      yyerror("Variable is not declared");
+                                    (yyval.entry)=new Entry(entries_list.at(variable_index));
+                                    switch(array_index.token_type){
+                                      case LOCAL_VARIABLE:
+                                      case GLOBAL_VARIABLE:
+                                      case PROCEDURE:
+                                      case ARGUMENT:
+                                      case TEMPORARY_VARIABLE:
+                                      if (array_index.is_array_data_type)
+                                        if (array_index.values.empty())
+                                          yyerror("Variable is not initialized");
+                                        if (array_index.values.at(0).integer<0 || array_index.values.at(0).integer>(yyval.entry->last_index))
+                                          yyerror("Array out of bounds.");
+                                        current_array_index=array_index.values.at(0).integer;
+                                        break;
+                                      case VALUE:
+                                        if (array_index.values.at(0).integer<0 || array_index.values.at(0).integer>(yyval.entry->last_index))
+                                          yyerror("Array out of bounds.");
+                                        current_array_index=array_index.values.at(0).integer;
+                                        break;
+                                    }
+									               }
+#line 1798 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 35:
-#line 404 "parser.yy" /* yacc.c:1646  */
+#line 455 "parser.yy" /* yacc.c:1646  */
     {
                            string procedure_name=*(yyvsp[0].name);
 							             int procedure_index=find_procedure(procedure_name,vector<int>(),VOID);
                            (yyval.index)=procedure_index;
 						            }
-#line 1756 "parser.cpp" /* yacc.c:1646  */
+#line 1808 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 36:
-#line 409 "parser.yy" /* yacc.c:1646  */
+#line 460 "parser.yy" /* yacc.c:1646  */
     {
                                                     string procedure_name=*(yyvsp[-3].name);
                                                     vector<Entry> expression_results=*(yyvsp[-1].entries);
@@ -1785,15 +1837,87 @@ yyreduce:
                                                     if (procedure_index==-1)
                                                       yyerror("Cannot find function with that name and arguments");
                                                     yylval.entries=new vector<Entry>(expression_results);
-
-													//int procedure_index=find_procedure($1);
-													//$$=procedures_list[procedure_index];
 												                          }
-#line 1793 "parser.cpp" /* yacc.c:1646  */
+#line 1842 "parser.cpp" /* yacc.c:1646  */
+    break;
+
+  case 47:
+#line 513 "parser.yy" /* yacc.c:1646  */
+    { (yyval.entry)=(yyvsp[0].entry); }
+#line 1848 "parser.cpp" /* yacc.c:1646  */
+    break;
+
+  case 49:
+#line 516 "parser.yy" /* yacc.c:1646  */
+    {
+                    struct Entry constant;
+                    struct Number constant_value=(yyvsp[0].number);
+                    constant.token_type=VALUE;
+                    constant.data_type=constant_value.type;
+                    if (constant.data_type==INT_TYPE || constant.data_type==REAL_TYPE)
+                      constant.values.push_back(constant_value);
+                    else
+                      yyerror("Undefined data type");
+                    (yyval.entry)=new Entry(constant);
+                  }
+#line 1864 "parser.cpp" /* yacc.c:1646  */
+    break;
+
+  case 51:
+#line 528 "parser.yy" /* yacc.c:1646  */
+    {
+                        struct Entry factor_to_negate=*(yyvsp[0].entry);
+                        yylval.mov.changed_values_indexes=new vector<int>();
+                        current_register++;
+                        if (factor_to_negate.data_type==INT_TYPE){
+                          if (current_array_index!=-1 && factor_to_negate.is_array_data_type){
+                            factor_to_negate.values.at(current_array_index).integer=
+                              (factor_to_negate.values.at(current_array_index).integer==0) ? 1 : 0;
+                              yylval.mov.changed_values_indexes->push_back(current_array_index);
+                            }else{
+                            factor_to_negate.values.at(0).integer = (factor_to_negate.values.at(0).integer==0) ? 1 : 0;
+                            yylval.mov.changed_values_indexes->push_back(0);
+                          }
+                        } else if (factor_to_negate.data_type==REAL_TYPE){
+                          if (current_array_index!=-1 && factor_to_negate.is_array_data_type){
+                            factor_to_negate.values.at(current_array_index).real=
+                              (factor_to_negate.values.at(current_array_index).real==0.0) ? 1.0 : 0.0;
+                              yylval.mov.changed_values_indexes->push_back(current_array_index);
+                          } else
+                            factor_to_negate.values.at(0).real = (factor_to_negate.values.at(0).real==0.0) ? 1.0 : 0.0;
+                            yylval.mov.changed_values_indexes->push_back(0);
+                        } else
+                            yyerror("Undefined data type");
+                        string temporal_variable_name="$t"+current_register;
+                        int negated_factor_index=insert_variable(temporal_variable_name,factor_to_negate.data_type,
+                            factor_to_negate.is_array_data_type,factor_to_negate.first_index,factor_to_negate.last_index,TEMPORARY);
+                        int current_value_index=factor_to_negate.first_index;
+                        for (struct Number value : factor_to_negate.values){
+                          entries_list.at(negated_factor_index).values.at(current_value_index)=value;
+                          current_value_index++;
+                        }
+                        struct Entry negated_factor=entries_list.at(negated_factor_index);
+                        printf("Temporal variable: %s",temporal_variable_name.c_str());
+                        switch (factor_to_negate.data_type){
+                          case LOCAL_VARIABLE:
+                          case GLOBAL_VARIABLE:
+                          case PROCEDURE:
+                          case TEMPORARY_VARIABLE:
+                            yylval.mov.assign_type=VARIABLE_ASSIGN;
+                          case VALUE:
+                            yylval.mov.assign_type=CONSTANT_ASSIGN;
+                        }
+                        yylval.mov.assigned_entry=new Entry(negated_factor);
+                        yylval.mov.entry_to_assign=new Entry(factor_to_negate);
+                        print_assembly(MOV,yylval);
+                        current_register--;
+                        (yyval.entry)=new Entry(negated_factor);
+                      }
+#line 1917 "parser.cpp" /* yacc.c:1646  */
     break;
 
 
-#line 1797 "parser.cpp" /* yacc.c:1646  */
+#line 1921 "parser.cpp" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -2021,7 +2145,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 472 "parser.yy" /* yacc.c:1906  */
+#line 577 "parser.yy" /* yacc.c:1906  */
 
 
 
@@ -2038,6 +2162,60 @@ void print_assembly(int token, YYSTYPE token_value){
 
   if (token==NUM){
 
+  }else if (token==MOV){
+    vector<int> changed_values_indexes=*(token_value.mov.changed_values_indexes);
+    if (yylval.mov.entry_to_assign->data_type==yylval.mov.assigned_entry->data_type){
+      if (yylval.mov.assign_type==CONSTANT_ASSIGN){
+        for (int changed_value_index :  changed_values_indexes){
+          if (yylval.mov.assigned_entry->data_type==INT_TYPE){
+            fprintf(yyout,"\t\tmov.i\t%d, #%d",yylval.mov.assigned_entry->addresses.at(changed_value_index),yylval.mov.assigned_entry->values.at(changed_value_index).integer);
+          } else if (yylval.mov.assigned_entry->data_type=REAL_TYPE){
+            fprintf(yyout,"\t\tmov.r\t%d, #%d",yylval.mov.assigned_entry->addresses.at(changed_value_index),yylval.mov.assigned_entry->values.at(changed_value_index).real);
+          }
+        }
+      }else if (yylval.mov.assign_type==VARIABLE_ASSIGN){
+         for (int changed_value_index :  changed_values_indexes){
+           if (yylval.mov.assigned_entry->data_type==INT_TYPE){
+             fprintf(yyout,"\t\tmov.i\t%d, %d",yylval.mov.assigned_entry->addresses.at(changed_value_index),yylval.mov.assigned_entry->addresses.at(changed_value_index));
+           } else if (yylval.mov.assigned_entry->data_type=REAL_TYPE){
+             fprintf(yyout,"\t\tmov.r\t%d, %d",yylval.mov.assigned_entry->addresses.at(changed_value_index),yylval.mov.assigned_entry->addresses.at(changed_value_index));
+           }
+         }
+       }
+     } else if (yylval.mov.assigned_entry->data_type==INT_TYPE){
+       current_register++;
+       string temporal_variable_name="$t"+current_register;
+       int temporal_variable_index=insert_variable(temporal_variable_name,yylval.mov.assigned_entry->data_type,
+         yylval.mov.assigned_entry->is_array_data_type,yylval.mov.assigned_entry->first_index,yylval.mov.assigned_entry->last_index,TEMPORARY);
+       for (int changed_value_index : changed_values_indexes){
+           entries_list.at(temporal_variable_index).values.at(changed_value_index).type=INT_TYPE;
+           entries_list.at(temporal_variable_index).values.at(changed_value_index).integer=(int)yylval.mov.entry_to_assign->values.at(changed_value_index).real;
+           if (yylval.mov.assign_type==CONSTANT_ASSIGN)
+              fprintf(yyout, "\t\trealtoint\t%d, #%d",entries_list.at(temporal_variable_index).addresses.at(changed_value_index),yylval.mov.entry_to_assign->values.at(changed_value_index).integer);
+          else if (yylval.mov.assign_type==VARIABLE_ASSIGN)
+            fprintf(yyout, "\t\trealtoint\t%d, %d",entries_list.at(temporal_variable_index).addresses.at(changed_value_index),yylval.mov.entry_to_assign->addresses.at(changed_value_index));
+          yylval.mov.assigned_entry->values.at(changed_value_index).integer=entries_list.at(temporal_variable_index).values.at(changed_value_index).integer;
+          fprintf(yyout,"\t\tmov.i\t%d, %d",yylval.mov.assigned_entry->addresses.at(changed_value_index), entries_list.at(temporal_variable_index).addresses.at(changed_value_index));
+          current_register--;
+        }
+       } else if (yylval.mov.assigned_entry->data_type==REAL_TYPE){
+         current_register++;
+         string temporal_variable_name="$t"+current_register;
+         int temporal_variable_index=insert_variable(temporal_variable_name,yylval.mov.assigned_entry->data_type,
+           yylval.mov.assigned_entry->is_array_data_type,yylval.mov.assigned_entry->first_index,yylval.mov.assigned_entry->last_index,TEMPORARY);
+         for (int changed_value_index : changed_values_indexes){
+           entries_list.at(temporal_variable_index).values.at(changed_value_index).type=REAL_TYPE;
+           entries_list.at(temporal_variable_index).values.at(changed_value_index).real=(double)yylval.mov.entry_to_assign->values.at(changed_value_index).integer;
+           if (yylval.mov.assign_type==CONSTANT_ASSIGN)
+              fprintf(yyout, "\t\tinttoreal\t%d, #%d",entries_list.at(temporal_variable_index).addresses.at(changed_value_index),yylval.mov.entry_to_assign->values.at(changed_value_index).real);
+          else if (yylval.mov.assign_type==VARIABLE_ASSIGN)
+            fprintf(yyout, "\t\tinttoreal\t%d, %d",entries_list.at(temporal_variable_index).addresses.at(changed_value_index),yylval.mov.entry_to_assign->addresses.at(changed_value_index));
+          yylval.mov.assigned_entry->values.at(changed_value_index).integer=entries_list.at(temporal_variable_index).values.at(changed_value_index).integer;
+          fprintf(yyout,"\t\tmov.r\t%d, %d",yylval.mov.assigned_entry->addresses.at(changed_value_index), entries_list.at(temporal_variable_index).addresses.at(changed_value_index));
+          current_register--;
+       }
+     }
+
   }else if(token==INT_FUN) {
       string function_name=*(token_value.procedure.name);
       fprintf(yyout,"%s:\n",function_name.c_str());
@@ -2052,16 +2230,16 @@ void print_assembly(int token, YYSTYPE token_value){
     fprintf(yyout,"\t\tenter\t#%d\n",token_value.procedure.address);
   }else if (token==PROC_CALL){
     string procedure_name=*(token_value.procedure.name);
-    fprintf(yyout,"\t\tcall.i\t#%s",procedure_name.c_str());
+    fprintf(yyout,"\t\tcall\t#%s",procedure_name.c_str());
   } else if (token==PROC_CALL_WITH_ARGUMENTS){
     vector<Entry> entries=*(token_value.entries);
     for (struct Entry entry: entries){
       if (entry.data_type==INT_TYPE)
-        fprintf(yyout,"\t\tpush.i\t#%d",entry.address);
+        fprintf(yyout,"\t\tpush.i\t#%d",entry.addresses.at(0));
       else if (entry.data_type==REAL_TYPE)
-        fprintf(yyout,"\t\tpush.r\t#%d",entry.address);
+        fprintf(yyout,"\t\tpush.r\t#%d",entry.addresses.at(0));
+      fprintf(yyout,"\t\tcall.i\t#%s",entry.name.c_str());
     }
-
   }else if (token==RETURN){
     fprintf(yyout,"\t\tleave\n\t\treturn\n");
   }else if(token==NEW_BLOCK){

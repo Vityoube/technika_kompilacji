@@ -7,4 +7,4 @@ p:
 		enter	#44
 		leave
 		return
-		call.i	#p
+		call	#p
