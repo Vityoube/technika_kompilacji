@@ -45,6 +45,7 @@
 	  bool is_function;
     vector<int> addresses;
     int local_variable_function_index;
+    int current_array_index;
 	};
   struct Procedure{
     string* name;
@@ -75,12 +76,13 @@
 		int standard_return_type, bool is_array_return_type, int first_index, int last_index
 		);
 	extern void init();
+  void convert_entries(struct Entry * entry1, struct Entry * entry2);
 }
 %union {
 	  int token;
 	  int token_type;
 	  string* name;
-	  Number number;
+	  struct Number number;
 	  int address;
     struct Procedure procedure;
 	  int index;
@@ -98,6 +100,34 @@
       struct Entry * assigned_entry;
       vector<int> * changed_values_indexes;
     } mov;
+    struct Mulop {
+      struct Entry * entry1;
+      struct Entry * entry2;
+      struct Entry * result;
+    } mulop;
+    struct IntToReal {
+      struct Entry * entry_to_convert;
+      struct Entry * converted_entry;
+    } int_to_real;
+    struct RealToInt {
+      struct Entry * entry_to_convert;
+      struct Entry * converted_entry;
+    } real_to_int;
+    struct Or {
+      struct Entry * entry1;
+      struct Entry * entry2;
+      struct Entry * result;
+    } Or;
+    struct Add{
+      struct Entry * entry1;
+      struct Entry * entry2;
+      struct Entry * result;
+    } add;
+    struct Sub{
+      struct Entry * entry1;
+      struct Entry * entry2;
+      struct Entry * result;
+    } sub;
  }
  %code provides{
   void print_assembly(int token, YYSTYPE token_value);
@@ -140,8 +170,24 @@
 %token <name> RETURN
 %token <name> NEW_BLOCK
 %token <name> PROC_CALL_WITH_ARGUMENTS
+%token <name> FUNCTION_CALL
 %token <name> MOV
-%type <index> procedure_statement
+%token <name> MULI
+%token <name> MULR
+%token <name> DIVI
+%token <name> DIVR
+%token <name> MOD
+%token <name> ANDI
+%token <name> ANDR
+%token <name> INT_TO_REAL
+%token <name> REAL_TO_INT
+%token <name> ORI
+%token <name> ORR
+%token <name> ADDI
+%token <name> ADDR
+%token <name> SUBI
+%token <name> SUBR
+%type <entry> procedure_statement
 %type <data_type> type
 %type <standard_type> standard_type
 %type <index> subprogram_head
@@ -149,6 +195,22 @@
 %type <entry> expression
 %type <entry> variable
 %type <entry> factor
+%type <name> begin
+%type <name> or
+%type <name> While
+%type <name> Do
+%type <name> If
+%type <name> Then
+%type <name> Else
+%type <entry> term
+%type <entry> simple_expression
+%destructor {} begin
+%destructor {} or
+%destructor {} While
+%destructor {} Do
+%destructor {} If
+%destructor {} Then
+%destructor {} Else
 %{
   int last_parameter=-1;
   bool local_scope=false;
@@ -156,6 +218,8 @@
   int current_block=0;
   int current_array_index=-1;
   int current_register=-1;
+  vector<Entry> current_expressions;
+  vector<Entry> current_argument_entries;
 %}
 %%
 
@@ -222,12 +286,14 @@ type: standard_type	{
                         type.last_index=0;
                         $$=type;
 					          }
-      | ARR '[' NUM ".." NUM ']' OF standard_type	{
+      | ARR '[' NUM '.''.' NUM ']' OF standard_type	{
                                                       struct Type type;
-                                                      type.standard_type=$8;
+                                                      type.standard_type=$9;
                                                       type.is_array=true;
                                                       struct Number first_index_NUM=$3;
-                                                      struct Number last_index_NUM=$5;
+                                                      struct Number last_index_NUM=$6;
+                                                      if (first_index_NUM.type==REAL_TYPE || last_index_NUM.type==REAL_TYPE)
+                                                        yyerror("The number of first and second indexes for array should be integer value");
                                                       type.first_index=first_index_NUM.integer;
                                                       type.last_index=last_index_NUM.integer;
                                                       $$=type;
@@ -257,7 +323,15 @@ subprogram_declaration: subprogram_head
 
 subprogram_head: FUN ID arguments ':' standard_type ';' {
                                                             string function_name=*$2;
-                                                            int p=find_procedure(function_name,current_parameter_indexes,$5);
+                                                            vector<int> arguments_types;
+                                                            vector<bool> is_array_arguments;
+                                                            vector<int> arguments_arrays_sizes;
+                                                            for (int argument_index : current_arguments_indexes){
+                                                              arguments_types.push_back(entries_list.at(argument_index).data_type);
+                                                              is_array_arguments.push_back(entries_list.at(argument_index).is_array_data_type);
+                                                              arguments_arrays_sizes.push_back(entries_list.at(argument_index).last_index-entries_list.at(argument_index).first_index);
+                                                            }
+                                                            int p=find_procedure(function_name,arguments_types,is_array_arguments,arguments_arrays_sizes);
                                                             if (p==-1){
                                                               current_procedure_index=insert_procedure(function_name,true,current_parameter_indexes,$5,false,0,0);
                                                               $$=current_procedure_index;
@@ -280,7 +354,15 @@ subprogram_head: FUN ID arguments ':' standard_type ';' {
                                                         }
                 | PROC ID arguments ';'            {
                                                             string procedure_name=*$2;
-                                                            int p=find_procedure(procedure_name,current_parameter_indexes,VOID);
+                                                            vector<int> arguments_types;
+                                                            vector<bool> is_array_arguments;
+                                                            vector<int> arguments_arrays_sizes;
+                                                            for (int argument_index : current_arguments_indexes){
+                                                              arguments_types.push_back(entries_list.at(argument_index).data_type);
+                                                              is_array_arguments.push_back(entries_list.at(argument_index).is_array_data_type);
+                                                              arguments_arrays_sizes.push_back(entries_list.at(argument_index).last_index-entries_list.at(argument_index).first_index);
+                                                            }
+                                                            int p=find_procedure(procedure_name,arguments_types,is_array_arguments,arguments_arrays_sizes);
                                                             if (p==-1){
                                                               current_procedure_index=insert_procedure(procedure_name,false,current_parameter_indexes,VOID,false,0,0);
                                                               $$=current_procedure_index;
@@ -346,18 +428,19 @@ parameter_list: identifier_list ':' type  {
                                                                 current_identifiers_list.clear();
                                                               }
 ;
-compound_statement:   BEG
+compound_statement:   begin
                       optional_statements
                       END               { compound_statements_complexity--; }
 
 ;
+begin:  BEG {
+              if (!local_scope && compound_statements_complexity==0)
+                print_assembly(NEW_BLOCK,yylval);
+              compound_statements_complexity++;
+            }
 
-optional_statements:              {
-                                    if (!local_scope && compound_statements_complexity==0)
-                                      print_assembly(NEW_BLOCK,yylval);
-                                    compound_statements_complexity++;
-                                   }
-                    | statement_list
+optional_statements:  statement_list
+                    |
 ;
 statement_list: statement
                 | statement_list ';' statement
@@ -380,7 +463,7 @@ statement: variable ASSIGNOP expression		{
 											}
 
           | procedure_statement {
-                                  struct Entry procedure=entries_list.at($1);
+                                  struct Entry procedure=*$1;
                                   if (procedure.arguments_count==0){
                                       string procedure_name=procedure.name;
                                       struct Procedure called_procedure;
@@ -388,14 +471,24 @@ statement: variable ASSIGNOP expression		{
                                       yylval.procedure=called_procedure;
                                       print_assembly(PROC_CALL,yylval);
                                   } else {
+                                    yylval.entries=new vector<Entry>(current_argument_entries);
                                     print_assembly(PROC_CALL_WITH_ARGUMENTS,yylval);
-                                    yylval.entries=new vector<Entry>();
                                   }
                                 }
           | compound_statement
-          | IF expression THEN statement ELSE statement
-          | WHILE expression DO statement
+          | If expression Then statement Else statement
+          | While expression Do statement
 
+;
+If: IF
+;
+Then: THEN
+;
+Else: ELSE
+;
+While: WHILE
+;
+Do: DO
 ;
 
 variable: ID	{
@@ -441,12 +534,12 @@ variable: ID	{
                                           yyerror("Variable is not initialized");
                                         if (array_index.values.at(0).integer<0 || array_index.values.at(0).integer>$<entry->last_index>$)
                                           yyerror("Array out of bounds.");
-                                        current_array_index=array_index.values.at(0).integer;
+                                        $$->current_array_index=array_index.values.at(0).integer;
                                         break;
                                       case VALUE:
                                         if (array_index.values.at(0).integer<0 || array_index.values.at(0).integer>$<entry->last_index>$)
                                           yyerror("Array out of bounds.");
-                                        current_array_index=array_index.values.at(0).integer;
+                                        $$->current_array_index=array_index.values.at(0).integer;
                                         break;
                                     }
 									               }
@@ -455,7 +548,12 @@ variable: ID	{
 procedure_statement: ID	{
                            string procedure_name=*$1;
 							             int procedure_index=find_procedure(procedure_name,vector<int>(),VOID);
-                           $$=procedure_index;
+                           $$=new Entry(entries_list.at(procedure_index));
+                           struct Procedure procedure;
+                           procedure.name=$1;
+                           procedure.address=entries_list.at(procedure_index).addresses.at(0);
+                           yylval.procedure=procedure;
+
 						            }
                      | ID '(' expression_list ')' {
                                                     string procedure_name=*$1;
@@ -484,34 +582,334 @@ procedure_statement: ID	{
                                                     int procedure_index=find_procedure(procedure_name,arguments_types,is_array,sizes);
                                                     if (procedure_index==-1)
                                                       yyerror("Cannot find function with that name and arguments");
-                                                    yylval.entries=new vector<Entry>(expression_results);
+                                                    current_argument_entries.insert(current_argument_entries.end(),expression_results.begin(),expression_results.end());
+                                                    for (int i=0; i<current_argument_entries.size();i++)
+                                                      current_argument_entries.at(i).local_variable_function_index=procedure_index;
+                                                    $$=new Entry(entries_list.at(procedure_index));
+                                                    struct Procedure procedure;
+                                                    procedure.name=new string(procedure_name);
+                                                    procedure.address=entries_list.at(procedure_index).addresses.at(0);
+                                                    yylval.procedure=procedure;
 												                          }
 
 ;
 
-expression_list: expression
-                | expression_list ',' expression
+expression_list: expression {
+                                struct Entry expression=*$1;
+                                $$=new vector<Entry>();
+                                $$->push_back(expression);
+                             }
+                | expression_list ',' expression  {
+                                                    struct Entry expression=*$3;
+                                                    $1->push_back(expression);
+                                                    $$=$1;
+                                                  }
 ;
 
-expression: simple_expression
-            | simple_expression RELOP simple_expression
+expression: simple_expression { $$=$1; }
+            | simple_expression RELOP simple_expression {
+                                                          struct Entry entry1=*$1;
+                                                          struct Entry entry2=*$3;
+                                                          convert_entries(&entry1,&entry2);
+                                                          current_register++;
+                                                          string temporal_variable_name="$t"+current_register;
+                                                          int temporal_variable_index=insert_variable(temporal_variable_name, entry1.data_type,false,0,0,TEMPORARY);
+                                                          $$=new Entry(entries_list.at(temporal_variable_index));
+                                                          yylval.mov.assigned_entry=$$;
+                                                          yylval.mov.assign_type=CONSTANT_ASSIGN;
+                                                          struct Entry relop_value;
+                                                          relop_value.data_type=$$->data_type;
+                                                          relop_value.token_type=VALUE;
+                                                          relop_value.is_array_data_type=false;
+                                                          relop_value.first_index=0;
+                                                          relop_value.last_index=0;
+                                                          struct Number value;
+                                                          if ($$->data_type==INT_TYPE){
+                                                              if(($2)->compare(">")==0){
+                                                                 if (entry1.values.at(0).integer>entry2.values.at(0).integer)
+                                                                   value.integer=1;
+                                                                 else
+                                                                  value.integer=0;
+                                                              }
+                                                              else if (($2)->compare(">=")==0){
+                                                                if (entry1.values.at(0).integer>=entry2.values.at(0).integer)
+                                                                  value.integer=1;
+                                                                else
+                                                                 value.integer=0;
+                                                             }else if (($2)->compare("<")==0){
+                                                               if (entry1.values.at(0).integer<entry2.values.at(0).integer)
+                                                                 value.integer=1;
+                                                               else
+                                                                value.integer=0;
+                                                              }else if (($2)->compare("<=")==0){
+                                                                if (entry1.values.at(0).integer<=entry2.values.at(0).integer)
+                                                                  value.integer=1;
+                                                                else
+                                                                 value.integer=0;
+                                                              }else if (($2)->compare("==")==0){
+                                                                if (entry1.values.at(0).integer==entry2.values.at(0).integer)
+                                                                  value.integer=1;
+                                                                else
+                                                                 value.integer=0;
+                                                              } else if (($2)->compare("<>")==0){
+                                                                if (entry1.values.at(0).integer!=entry2.values.at(0).integer)
+                                                                  value.integer=1;
+                                                                else
+                                                                 value.integer=0;
+                                                               }
+                                                          } else if ($$->data_type==REAL_TYPE){
+                                                            if(($2)->compare(">")==0){
+                                                                 if (entry1.values.at(0).real>entry2.values.at(0).real)
+                                                                   value.real=1.0;
+                                                                 else
+                                                                  value.real=0.0;
+                                                                 break;
+                                                            }  else if (($2)->compare(">=")==0){
+                                                                if (entry1.values.at(0).real>=entry2.values.at(0).real)
+                                                                  value.real=1.0;
+                                                                else
+                                                                 value.real=0.0;
+                                                             } else if (($2)->compare("<")==0){
+                                                               if (entry1.values.at(0).real<entry2.values.at(0).real)
+                                                                 value.real=1.0;
+                                                               else
+                                                                value.real=0.0;
+                                                              }else if (($2)->compare("<=")==0){
+                                                                if (entry1.values.at(0).real<=entry2.values.at(0).real)
+                                                                  value.real=1.0;
+                                                                else
+                                                                 value.real=0.0;
+                                                              }else if (($2)->compare("==")==0){
+                                                                if (entry1.values.at(0).real==entry2.values.at(0).real)
+                                                                  value.real=1.0;
+                                                                else
+                                                                 value.real=0.0;
+                                                              }else if (($2)->compare("<>")==0){
+                                                                if (entry1.values.at(0).real!=entry2.values.at(0).real)
+                                                                  value.real=1.0;
+                                                                else
+                                                                 value.real=0.0;
+                                                              }
+                                                        }
+                                                        relop_value.values.push_back(value);
+                                                        $$->values.at(0)=value;
+                                                        yylval.mov.entry_to_assign=new Entry(relop_value);
+                                                        printf("Temporal variable: %s",$$->name.c_str());
+                                                        print_assembly(MOV,yylval);
+                                                        current_register--;
+                                                      }
+;
+
+simple_expression: term { $$=$1; }
+                  | SIGN term {
+                                struct Entry entry=*$2;
+                                if (entry.is_array_data_type && entry.current_array_index!=-1){
+                                  struct Number value=entry.values.at(entry.current_array_index);
+                                  entry.is_array_data_type=false;
+                                  entry.addresses.clear();
+                                  entry.values.clear();
+                                  entry.first_index=0;
+                                  entry.last_index=0;
+                                  entry.values.push_back(value);
+                                }
+                                if (($1)->compare("-")==0){
+                                  for (int i=0;i<entry.values.size();i++){
+                                    if (entry.data_type==INT_TYPE)
+                                      entry.values.at(i).integer=-entry.values.at(i).integer;
+                                    else if (entry.data_type==REAL_TYPE)
+                                      entry.values.at(i).real=-entry.values.at(i).real;
+                                    }
+                                    current_register++;
+                                    string temporal_variable_name="$t"+current_register;
+                                    int temporal_variable_index=insert_variable(temporal_variable_name,entry.data_type,
+                                      entry.is_array_data_type,entry.first_index,entry.last_index,TEMPORARY);
+                                    for (int i=0;i<entry.values.size();i++)
+                                      entries_list.at(temporal_variable_index).values.at(i)=entry.values.at(i);
+                                    entry=entries_list.at(temporal_variable_index);
+                                    printf("Temporal variable: %s",entry.name.c_str());
+                                    yylval.mov.entry_to_assign=$2;
+                                    yylval.mov.assigned_entry=new Entry(entry);
+                                    yylval.mov.assign_type=($2->token_type==VALUE) ? CONSTANT_ASSIGN : VARIABLE_ASSIGN;
+                                    print_assembly(MOV,yylval);
+                                    current_register--;
+                                }
+                                $$=new Entry(entry);
+                              }
+                  | simple_expression SIGN term {
+                                                  struct Entry entry1=*$1;
+                                                  struct Entry entry2=*$3;
+                                                  convert_entries(&entry1,&entry2);
+                                                  current_register++;
+                                                  string temporal_variable_name="$t"+current_register;
+                                                  int temporal_variable_index=insert_variable(temporal_variable_name,entry1.data_type,false,0,0,TEMPORARY);
+                                                  printf("Temporal variable: %s",entries_list.at(temporal_variable_index).name);
+                                                  $$=new Entry(entries_list.at(temporal_variable_index));
+                                                  if ($2->compare("+")==0){
+                                                    if (entry1.data_type==INT_TYPE){
+                                                      $$->values.at(0).integer=entry1.values.at(0).integer+entry2.values.at(0).integer;
+                                                      yylval.add.entry1=new Entry(entry1);
+                                                      yylval.add.entry2=new Entry(entry2);
+                                                      yylval.add.result=$$;
+                                                      print_assembly(ADDI,yylval);
+                                                    } else if (entry1.data_type==REAL_TYPE){
+                                                      $$->values.at(0).real=entry1.values.at(0).real+entry2.values.at(0).real;
+                                                      yylval.add.entry1=new Entry(entry1);
+                                                      yylval.add.entry2=new Entry(entry2);
+                                                      yylval.add.result=$$;
+                                                      print_assembly(ADDR,yylval);
+                                                    }
+                                                  } else if ($2->compare("-")==0){
+                                                    if (entry1.data_type==INT_TYPE){
+                                                      $$->values.at(0).integer=entry1.values.at(0).integer-entry2.values.at(0).integer;
+                                                      yylval.sub.entry1=new Entry(entry1);
+                                                      yylval.sub.entry2=new Entry(entry2);
+                                                      yylval.sub.result=$$;
+                                                      print_assembly(SUBI,yylval);
+                                                    } else if (entry1.data_type==REAL_TYPE){
+                                                      $$->values.at(0).real=entry1.values.at(0).real-entry2.values.at(0).real;
+                                                      yylval.sub.entry1=new Entry(entry1);
+                                                      yylval.sub.entry2=new Entry(entry2);
+                                                      yylval.sub.result=$$;
+                                                      print_assembly(SUBR,yylval);
+                                                    }
+                                                  }
+                                                  current_register--;
+                                                }
+                  | simple_expression or term {
+                                                struct Entry entry1=*$1;
+                                                struct Entry entry2=*$3;
+                                                convert_entries(&entry1,&entry2);
+                                                yylval.Or.entry1=new Entry(entry1);
+                                                yylval.Or.entry2=new Entry(entry2);
+                                                if (entry1.data_type==INT_TYPE){
+                                                  current_register++;
+                                                  string temporal_variable_name="$t"+current_register;
+                                                  int temporal_variable_index=insert_variable(temporal_variable_name,INT_TYPE,false,0,0,TEMPORARY);
+                                                  $$=new Entry(entries_list.at(temporal_variable_index));
+                                                  $$->values.at(0).integer=(entry1.values.at(0).integer==0 && entry2.values.at(0).integer==0) ? 0 : 1;
+                                                  yylval.Or.result=$$;
+                                                  print_assembly(ORI,yylval);
+                                                  printf("Temporal variable: %s",$$->name.c_str());
+                                                  current_register--;
+                                                } else if (entry2.data_type==REAL_TYPE){
+                                                  current_register++;
+                                                  string temporal_variable_name="$t"+current_register;
+                                                  int temporal_variable_index=insert_variable(temporal_variable_name,INT_TYPE,false,0,0,TEMPORARY);
+                                                  $$=new Entry(entries_list.at(temporal_variable_index));
+                                                  $$->values.at(0).real=(entry1.values.at(0).real==0.0 && entry2.values.at(0).real==0.0) ? 0.0 : 1.0;
+                                                  yylval.Or.result=$$;
+                                                  print_assembly(ORR,yylval);
+                                                  printf("Temporal variable: %s",$$->name.c_str());
+                                                  current_register--;
+                                                } else {
+                                                  current_register--;
+                                                  yyerror("Not identified type of variables");
+                                                }
+                                              }
 
 ;
 
-simple_expression: term
-                  | SIGN term
-                  | simple_expression SIGN term
-                  | simple_expression OR term
-
+or: OR
 ;
+term: factor  { $$=$1; }
+      | term MULOP factor  {
+                              struct Entry entry1=*$1;
+                              struct Entry entry2=*$3;
+                              convert_entries(&entry1,&entry2);
+                              string mulop_variable_name="$t"+current_register;
+                              yylval.mulop.entry1=new Entry(entry1);
+                              yylval.mulop.entry2=new Entry(entry2);
+                              if (entry1.data_type==INT_TYPE){
+                                current_register++;
+                                int mulop_expression_int_index=insert_variable(mulop_variable_name,INT_TYPE,false,0,0,TEMPORARY);
+                                $$=new Entry(entries_list.at(mulop_expression_int_index));
+                                printf("Temporal variable: %s",$$->name.c_str());
+                                if (($2)->compare("*")==0){
+                                    $$->values.at(0).integer=entry1.values.at(0).integer * entry2.values.at(0).integer;
+                                    yylval.mulop.result=$$;
+                                    print_assembly(MULI,yylval);
+                                } else if (($2)->compare("/")==0 || ($2)->compare("div")==0){
+                                    if (entry2.values.at(0).integer==0){
+                                      current_register--;
+                                      yyerror("Division by 0");
+                                    }
+                                    $$->values.at(0).integer=entry1.values.at(0).integer / entry2.values.at(0).integer;
+                                    yylval.mulop.result=$$;
+                                    print_assembly(DIVI,yylval);
+                                    break;
+                                  }else if (($2)->compare("mod")==0){
+                                    if (entry2.values.at(0).integer==0){
+                                      current_register--;
+                                      yyerror("Mod by 0");
+                                    }
+                                    $$->values.at(0).integer=entry1.values.at(0).integer % entry2.values.at(0).integer;
+                                    yylval.mulop.result=$$;
+                                    print_assembly(MOD,yylval);
+                                  }else if (($2)->compare("and")==0){
+                                  if (entry1.values.at(0).integer==0 || entry2.values.at(0).integer==0)
+                                        $$->values.at(0).integer=0;
+                                    else
+                                        $$->values.at(0).integer==1;
+                                    yylval.mulop.result=$$;
+                                    print_assembly(ANDI,yylval);
+                                  }
+                                 } else if (entry1.data_type==REAL_TYPE){
+                                   int mulop_real_expression_index=insert_variable(mulop_variable_name,REAL_TYPE,false,0,0,TEMPORARY);
+                                   $$=new Entry(entries_list.at(mulop_real_expression_index));
+                                   printf("Temporal variable: %s",$$->name.c_str());
+                                   if (($2)->compare("*")==0){
+                                      $$->values.at(0).real=entry1.values.at(0).real * entry2.values.at(0).real;
+                                      yylval.mulop.result=$$;
+                                      print_assembly(MULR,yylval);
+                                  } else if (($2)->compare("/")==0){
+                                      $$->values.at(0).real=entry1.values.at(0).real * entry2.values.at(0).real;
+                                      yylval.mulop.result=$$;
+                                      print_assembly(DIVR,yylval);
+                                  } else if (($2)->compare("div")==0){
+                                      $$->values.at(0).integer=(int)(entry1.values.at(0).real)/(int)(entry2.values.at(0).real);
+                                      yylval.mulop.result=$$;
+                                      print_assembly(DIVI,yylval);
+                                  } else if (($2)->compare("and")==0){
+                                     if (entry1.values.at(0).real==0.0 || entry2.values.at(0).real==0.0)
+                                           $$->values.at(0).real=0.0;
+                                       else
+                                           $$->values.at(0).real==1.0;
+                                       yylval.mulop.result=$$;
+                                       print_assembly(ANDR,yylval);
+                                  } else {
+                                      current_register--;
+                                      yyerror("Undefined operator");
+                                    }
+                                 }
+                                 else {
+                                   current_register--;
+                                   yyerror("Data type of variables is undefined");
+                                 }
+                                 current_register--;
+                           }
 
-term: factor
-      | term MULOP factor
 
 ;
 
 factor: variable  { $$=$1; }
-        |  ID '(' expression_list ')'
+        |  ID '(' expression_list ')' {
+                                          vector<int> arguments_types;
+                                          vector<bool> is_array_arguments;
+                                          vector<int> array_sizes;
+                                          for(struct Entry potential_argument : *$3){
+                                            arguments_types.push_back(potential_argument.data_type);
+                                            is_array_arguments.push_back(potential_argument.is_array_data_type);
+                                            array_sizes.push_back(potential_argument.last_index-potential_argument.first_index);
+                                          }
+                                          int function_index=find_procedure(*$1,arguments_types,is_array_arguments,array_sizes);
+                                          if (function_index==-1)
+                                            yyerror("The function is undefined (first declared).");
+                                          $$=new Entry(entries_list.at(function_index));
+                                          yylval.entries=new vector<Entry>();
+                                          yylval.entries->insert(yylval.entries->end(),$3->begin(),$3->end());
+                                          yylval.entry=$$;
+                                          print_assembly(FUNCTION_CALL,yylval);
+                                      }
 
         | NUM     {
                     struct Entry constant;
@@ -524,25 +922,25 @@ factor: variable  { $$=$1; }
                       yyerror("Undefined data type");
                     $$=new Entry(constant);
                   }
-        | '(' expression ')'
+        | '(' expression ')' { $$=$2; }
         | NOT factor  {
                         struct Entry factor_to_negate=*$2;
                         yylval.mov.changed_values_indexes=new vector<int>();
                         current_register++;
                         if (factor_to_negate.data_type==INT_TYPE){
-                          if (current_array_index!=-1 && factor_to_negate.is_array_data_type){
+                          if (factor_to_negate.current_array_index!=-1 && factor_to_negate.is_array_data_type){
                             factor_to_negate.values.at(current_array_index).integer=
                               (factor_to_negate.values.at(current_array_index).integer==0) ? 1 : 0;
-                              yylval.mov.changed_values_indexes->push_back(current_array_index);
+                              yylval.mov.changed_values_indexes->push_back(factor_to_negate.current_array_index);
                             }else{
                             factor_to_negate.values.at(0).integer = (factor_to_negate.values.at(0).integer==0) ? 1 : 0;
                             yylval.mov.changed_values_indexes->push_back(0);
                           }
                         } else if (factor_to_negate.data_type==REAL_TYPE){
-                          if (current_array_index!=-1 && factor_to_negate.is_array_data_type){
+                          if (factor_to_negate.current_array_index!=-1 && factor_to_negate.is_array_data_type){
                             factor_to_negate.values.at(current_array_index).real=
                               (factor_to_negate.values.at(current_array_index).real==0.0) ? 1.0 : 0.0;
-                              yylval.mov.changed_values_indexes->push_back(current_array_index);
+                              yylval.mov.changed_values_indexes->push_back(factor_to_negate.current_array_index);
                           } else
                             factor_to_negate.values.at(0).real = (factor_to_negate.values.at(0).real==0.0) ? 1.0 : 0.0;
                             yylval.mov.changed_values_indexes->push_back(0);
@@ -551,9 +949,8 @@ factor: variable  { $$=$1; }
                         string temporal_variable_name="$t"+current_register;
                         int negated_factor_index=insert_variable(temporal_variable_name,factor_to_negate.data_type,
                             factor_to_negate.is_array_data_type,factor_to_negate.first_index,factor_to_negate.last_index,TEMPORARY);
-                        int current_value_index=factor_to_negate.first_index;
-                        for (struct Number value : factor_to_negate.values){
-                          entries_list.at(negated_factor_index).values.at(current_value_index)=value;
+                        for (int current_value_index=factor_to_negate.first_index; current_value_index<=factor_to_negate.last_index;current_value_index++){
+                          entries_list.at(negated_factor_index).values.at(current_value_index)=factor_to_negate.values.at(current_value_index);
                           current_value_index++;
                         }
                         struct Entry negated_factor=entries_list.at(negated_factor_index);
@@ -572,6 +969,7 @@ factor: variable  { $$=$1; }
                         print_assembly(MOV,yylval);
                         current_register--;
                         $$=new Entry(negated_factor);
+                        $$->current_array_index=factor_to_negate.current_array_index;
                       }
 ;
 %%
@@ -592,58 +990,173 @@ void print_assembly(int token, YYSTYPE token_value){
 
   }else if (token==MOV){
     vector<int> changed_values_indexes=*(token_value.mov.changed_values_indexes);
-    if (yylval.mov.entry_to_assign->data_type==yylval.mov.assigned_entry->data_type){
       if (yylval.mov.assign_type==CONSTANT_ASSIGN){
         for (int changed_value_index :  changed_values_indexes){
           if (yylval.mov.assigned_entry->data_type==INT_TYPE){
-            fprintf(yyout,"\t\tmov.i\t%d, #%d",yylval.mov.assigned_entry->addresses.at(changed_value_index),yylval.mov.assigned_entry->values.at(changed_value_index).integer);
+            fprintf(yyout,"\t\tmov.i\t%d, #%d\n",yylval.mov.assigned_entry->addresses.at(changed_value_index),yylval.mov.assigned_entry->values.at(changed_value_index).integer);
           } else if (yylval.mov.assigned_entry->data_type=REAL_TYPE){
-            fprintf(yyout,"\t\tmov.r\t%d, #%d",yylval.mov.assigned_entry->addresses.at(changed_value_index),yylval.mov.assigned_entry->values.at(changed_value_index).real);
+            fprintf(yyout,"\t\tmov.r\t%d, #%d\n",yylval.mov.assigned_entry->addresses.at(changed_value_index),yylval.mov.assigned_entry->values.at(changed_value_index).real);
           }
         }
       }else if (yylval.mov.assign_type==VARIABLE_ASSIGN){
          for (int changed_value_index :  changed_values_indexes){
            if (yylval.mov.assigned_entry->data_type==INT_TYPE){
-             fprintf(yyout,"\t\tmov.i\t%d, %d",yylval.mov.assigned_entry->addresses.at(changed_value_index),yylval.mov.assigned_entry->addresses.at(changed_value_index));
+             fprintf(yyout,"\t\tmov.i\t%d, %d\n",yylval.mov.assigned_entry->addresses.at(changed_value_index),yylval.mov.assigned_entry->addresses.at(changed_value_index));
            } else if (yylval.mov.assigned_entry->data_type=REAL_TYPE){
-             fprintf(yyout,"\t\tmov.r\t%d, %d",yylval.mov.assigned_entry->addresses.at(changed_value_index),yylval.mov.assigned_entry->addresses.at(changed_value_index));
+             fprintf(yyout,"\t\tmov.r\t%d, %d\n",yylval.mov.assigned_entry->addresses.at(changed_value_index),yylval.mov.assigned_entry->addresses.at(changed_value_index));
            }
          }
        }
-     } else if (yylval.mov.assigned_entry->data_type==INT_TYPE){
-       current_register++;
-       string temporal_variable_name="$t"+current_register;
-       int temporal_variable_index=insert_variable(temporal_variable_name,yylval.mov.assigned_entry->data_type,
-         yylval.mov.assigned_entry->is_array_data_type,yylval.mov.assigned_entry->first_index,yylval.mov.assigned_entry->last_index,TEMPORARY);
-       for (int changed_value_index : changed_values_indexes){
-           entries_list.at(temporal_variable_index).values.at(changed_value_index).type=INT_TYPE;
-           entries_list.at(temporal_variable_index).values.at(changed_value_index).integer=(int)yylval.mov.entry_to_assign->values.at(changed_value_index).real;
-           if (yylval.mov.assign_type==CONSTANT_ASSIGN)
-              fprintf(yyout, "\t\trealtoint\t%d, #%d",entries_list.at(temporal_variable_index).addresses.at(changed_value_index),yylval.mov.entry_to_assign->values.at(changed_value_index).integer);
-          else if (yylval.mov.assign_type==VARIABLE_ASSIGN)
-            fprintf(yyout, "\t\trealtoint\t%d, %d",entries_list.at(temporal_variable_index).addresses.at(changed_value_index),yylval.mov.entry_to_assign->addresses.at(changed_value_index));
-          yylval.mov.assigned_entry->values.at(changed_value_index).integer=entries_list.at(temporal_variable_index).values.at(changed_value_index).integer;
-          fprintf(yyout,"\t\tmov.i\t%d, %d",yylval.mov.assigned_entry->addresses.at(changed_value_index), entries_list.at(temporal_variable_index).addresses.at(changed_value_index));
-          current_register--;
-        }
-       } else if (yylval.mov.assigned_entry->data_type==REAL_TYPE){
-         current_register++;
-         string temporal_variable_name="$t"+current_register;
-         int temporal_variable_index=insert_variable(temporal_variable_name,yylval.mov.assigned_entry->data_type,
-           yylval.mov.assigned_entry->is_array_data_type,yylval.mov.assigned_entry->first_index,yylval.mov.assigned_entry->last_index,TEMPORARY);
-         for (int changed_value_index : changed_values_indexes){
-           entries_list.at(temporal_variable_index).values.at(changed_value_index).type=REAL_TYPE;
-           entries_list.at(temporal_variable_index).values.at(changed_value_index).real=(double)yylval.mov.entry_to_assign->values.at(changed_value_index).integer;
-           if (yylval.mov.assign_type==CONSTANT_ASSIGN)
-              fprintf(yyout, "\t\tinttoreal\t%d, #%d",entries_list.at(temporal_variable_index).addresses.at(changed_value_index),yylval.mov.entry_to_assign->values.at(changed_value_index).real);
-          else if (yylval.mov.assign_type==VARIABLE_ASSIGN)
-            fprintf(yyout, "\t\tinttoreal\t%d, %d",entries_list.at(temporal_variable_index).addresses.at(changed_value_index),yylval.mov.entry_to_assign->addresses.at(changed_value_index));
-          yylval.mov.assigned_entry->values.at(changed_value_index).integer=entries_list.at(temporal_variable_index).values.at(changed_value_index).integer;
-          fprintf(yyout,"\t\tmov.r\t%d, %d",yylval.mov.assigned_entry->addresses.at(changed_value_index), entries_list.at(temporal_variable_index).addresses.at(changed_value_index));
-          current_register--;
-       }
-     }
-
+  }else if (token==INT_TO_REAL){
+    if (token_value.int_to_real.entry_to_convert->token_type=VALUE)
+      fprintf(yyout, "\t\tinttoreal.i\t%d, #%d\n",token_value.int_to_real.converted_entry->addresses.at(0),token_value.int_to_real.entry_to_convert->values.at(0).integer);
+    else
+      fprintf(yyout,"\t\tinttoreal.i\t%d, %d\n",token_value.int_to_real.converted_entry->addresses.at(0),token_value.int_to_real.entry_to_convert->addresses.at(0));
+  } else if (token==REAL_TO_INT){
+    if (token_value.int_to_real.entry_to_convert->token_type=VALUE)
+      fprintf(yyout, "\t\trealtoint.r\t%d, #%f\n",token_value.int_to_real.converted_entry->addresses.at(0),token_value.int_to_real.entry_to_convert->values.at(0).real);
+    else
+      fprintf(yyout,"\t\trealtoint.i\t%d, %d\n",token_value.int_to_real.converted_entry->addresses.at(0),token_value.int_to_real.entry_to_convert->addresses.at(0));
+  }else if(token==MULI){
+      fprintf(yyout,"\t\tmul.i\t%d, ",token_value.mulop.result->addresses.at(0));
+      if(token_value.mulop.entry1->token_type==VALUE){
+        fprintf(yyout,"#%d, ",token_value.mulop.entry1->values.at(0).integer);
+      } else
+        fprintf(yyout,"%d, ",token_value.mulop.entry1->addresses.at(0));
+      if (token_value.mulop.entry2->token_type==VALUE) {
+        fprintf(yyout,"#%d\n",token_value.mulop.entry2->values.at(0).integer);
+      } else {
+        fprintf(yyout,"%d\n",token_value.mulop.entry2->addresses.at(0));
+      }
+  } else if (token==DIVI){
+    fprintf(yyout,"\t\tdiv.i\t%d, ",token_value.mulop.result->addresses.at(0));
+    if(token_value.mulop.entry1->token_type==VALUE){
+      fprintf(yyout,"#%d, ",token_value.mulop.entry1->values.at(0).integer);
+    } else
+      fprintf(yyout,"%d, ",token_value.mulop.entry1->addresses.at(0));
+    if (token_value.mulop.entry2->token_type==VALUE) {
+      fprintf(yyout,"#%d\n",token_value.mulop.entry2->values.at(0).integer);
+    } else {
+      fprintf(yyout,"%d\n",token_value.mulop.entry2->addresses.at(0));
+    }
+  } else if (token==MOD){
+    fprintf(yyout,"\t\tmod.i\t%d, ",token_value.mulop.result->addresses.at(0));
+    if(token_value.mulop.entry1->token_type==VALUE){
+      fprintf(yyout,"#%d, ",token_value.mulop.entry1->values.at(0).integer);
+    } else
+      fprintf(yyout,"%d, ",token_value.mulop.entry1->addresses.at(0));
+    if (token_value.mulop.entry2->token_type==VALUE) {
+      fprintf(yyout,"#%d\n",token_value.mulop.entry2->values.at(0).integer);
+    } else {
+      fprintf(yyout,"%d\n",token_value.mulop.entry2->addresses.at(0));
+    }
+  } else if (token==ANDI){
+    fprintf(yyout,"\t\tand.i\t%d, ",token_value.mulop.result->addresses.at(0));
+    if(token_value.mulop.entry1->token_type==VALUE){
+      fprintf(yyout,"#%d, ",token_value.mulop.entry1->values.at(0).integer);
+    } else
+      fprintf(yyout,"%d, ",token_value.mulop.entry1->addresses.at(0));
+    if (token_value.mulop.entry2->token_type==VALUE) {
+      fprintf(yyout,"#%d\n",token_value.mulop.entry2->values.at(0).integer);
+    } else {
+      fprintf(yyout,"%d\n",token_value.mulop.entry2->addresses.at(0));
+    }
+  } else if (token=MULR){
+    fprintf(yyout,"\t\tmul.r\t%d, ",token_value.mulop.result->addresses.at(0));
+    if (token_value.mulop.entry1->token_type==VALUE){
+      fprintf(yyout,"#%f, ",token_value.mulop.entry1->values.at(0).real);
+    }else
+      fprintf(yyout,"%d, ",token_value.mulop.entry1->addresses.at(0));
+    if (token_value.mulop.entry2->token_type==VALUE)
+      fprintf(yyout,"#%f\n",token_value.mulop.entry2->values.at(0).real);
+    else
+      fprintf(yyout,"%d\n",token_value.mulop.entry2->addresses.at(0));
+  } else if(token==DIVR){
+    fprintf(yyout,"\t\tdiv.r\t%d, ",token_value.mulop.result->addresses.at(0));
+    if (token_value.mulop.entry1->token_type==VALUE){
+      fprintf(yyout,"#%f, ",token_value.mulop.entry1->values.at(0).real);
+    }else
+      fprintf(yyout,"%d, ",token_value.mulop.entry1->addresses.at(0));
+    if (token_value.mulop.entry2->token_type==VALUE){
+      fprintf(yyout,"#%f\n",token_value.mulop.entry2->values.at(0).real);
+    } else
+      fprintf(yyout,"%d\n",token_value.mulop.entry2->addresses.at(0));
+  } else if(token==ANDR){
+    fprintf(yyout,"\t\tand.r\t%d, ",token_value.mulop.result->addresses.at(0));
+    if (token_value.mulop.entry1->token_type==VALUE){
+      fprintf(yyout,"#%f, ",token_value.mulop.entry1->values.at(0).real);
+    }else
+      fprintf(yyout,"%d, ",token_value.mulop.entry1->addresses.at(0));
+    if (token_value.mulop.entry2->token_type==VALUE){
+      fprintf(yyout,"#%f\n",token_value.mulop.entry2->values.at(0).real);
+    }else
+      fprintf(yyout,"%d\n",token_value.mulop.entry2->addresses.at(0));
+  } else if (token==ORI){
+    fprintf(yyout,"\t\tor.i\t%d, ",token_value.Or.result->addresses.at(0));
+      if (token_value.Or.entry1->token_type==VALUE){
+        fprintf(yyout,"#%d, ",token_value.Or.entry1->values.at(0).integer);
+      } else
+        fprintf(yyout,"%d, ", token_value.Or.entry1->addresses.at(0));
+      if (token_value.Or.entry2->token_type==VALUE){
+        fprintf(yyout, "#%d\n", token_value.Or.entry2->values.at(0).integer);
+      } else {
+        fprintf(yyout,"%d\n",token_value.Or.entry2->addresses.at(0));
+      }
+  } else if (token==ORR){
+    fprintf(yyout,"\t\tor.r\t%d, ",token_value.Or.result->addresses.at(0));
+      if (token_value.Or.entry1->token_type==VALUE){
+        fprintf(yyout,"#%f, ",token_value.Or.entry1->values.at(0).real);
+      } else
+        fprintf(yyout,"%d, ", token_value.Or.entry1->addresses.at(0));
+      if (token_value.Or.entry2->token_type==VALUE){
+        fprintf(yyout, "#%f\n", token_value.Or.entry2->values.at(0).real);
+      } else {
+        fprintf(yyout,"%d\n",token_value.Or.entry2->addresses.at(0));
+      }
+  } else if (token==ADDI){
+    fprintf(yyout,"\t\tadd.i\t%d, ",token_value.add.result->addresses.at(0));
+      if (token_value.add.entry1->token_type==VALUE){
+        fprintf(yyout,"#%d, ",token_value.add.entry1->values.at(0).integer);
+      } else
+        fprintf(yyout,"%d, ", token_value.add.entry1->addresses.at(0));
+      if (token_value.add.entry2->token_type==VALUE){
+        fprintf(yyout, "#%d\n", token_value.add.entry2->values.at(0).integer);
+      } else {
+        fprintf(yyout,"%d\n",token_value.add.entry2->addresses.at(0));
+      }
+  } else if (token==ADDR){
+    fprintf(yyout,"\t\tadd.r\t%d, ",token_value.add.result->addresses.at(0));
+      if (token_value.add.entry1->token_type==VALUE){
+        fprintf(yyout,"#%f, ",token_value.add.entry1->values.at(0).real);
+      } else
+        fprintf(yyout,"%d, ", token_value.add.entry1->addresses.at(0));
+      if (token_value.add.entry2->token_type==VALUE){
+        fprintf(yyout, "#%f\n", token_value.add.entry2->values.at(0).integer);
+      } else {
+        fprintf(yyout,"%d\n",token_value.add.entry2->addresses.at(0));
+      }
+  } else if (token==SUBI){
+    fprintf(yyout,"\t\tsub.i\t%d, ",token_value.sub.result->addresses.at(0));
+      if (token_value.sub.entry1->token_type==VALUE){
+        fprintf(yyout,"#%d, ",token_value.sub.entry1->values.at(0).integer);
+      } else
+        fprintf(yyout,"%d, ", token_value.sub.entry1->addresses.at(0));
+      if (token_value.sub.entry2->token_type==VALUE){
+        fprintf(yyout, "#%d\n", token_value.sub.entry2->values.at(0).integer);
+      } else {
+        fprintf(yyout,"%d\n",token_value.sub.entry2->addresses.at(0));
+      }
+  } else if (token==SUBR){
+    fprintf(yyout,"\t\tsub.r\t%d, ",token_value.sub.result->addresses.at(0));
+      if (token_value.sub.entry1->token_type==VALUE){
+        fprintf(yyout,"#%f, ",token_value.sub.entry1->values.at(0).real);
+      } else
+        fprintf(yyout,"%d, ", token_value.sub.entry1->addresses.at(0));
+      if (token_value.sub.entry2->token_type==VALUE){
+        fprintf(yyout, "#%f\n", token_value.sub.entry2->values.at(0).real);
+      } else {
+        fprintf(yyout,"%d\n",token_value.sub.entry2->addresses.at(0));
+      }
   }else if(token==INT_FUN) {
       string function_name=*(token_value.procedure.name);
       fprintf(yyout,"%s:\n",function_name.c_str());
@@ -658,15 +1171,49 @@ void print_assembly(int token, YYSTYPE token_value){
     fprintf(yyout,"\t\tenter\t#%d\n",token_value.procedure.address);
   }else if (token==PROC_CALL){
     string procedure_name=*(token_value.procedure.name);
-    fprintf(yyout,"\t\tcall\t#%s",procedure_name.c_str());
+    fprintf(yyout,"\t\tcall\t#%s\n",procedure_name.c_str());
   } else if (token==PROC_CALL_WITH_ARGUMENTS){
     vector<Entry> entries=*(token_value.entries);
     for (struct Entry entry: entries){
-      if (entry.data_type==INT_TYPE)
-        fprintf(yyout,"\t\tpush.i\t#%d",entry.addresses.at(0));
-      else if (entry.data_type==REAL_TYPE)
-        fprintf(yyout,"\t\tpush.r\t#%d",entry.addresses.at(0));
-      fprintf(yyout,"\t\tcall.i\t#%s",entry.name.c_str());
+      if (entry.token_type==VALUE){
+        if (entry.data_type==INT_TYPE)
+          fprintf(yyout,"\t\tpush.i\t#%d\n",entry.values.at(0).integer);
+        else if (entry.data_type==REAL_TYPE)
+          fprintf(yyout,"\t\tpush.r\t#%f\n",entry.values.at(0).real);
+      }else {
+        if (entry.data_type==INT_TYPE)
+          fprintf(yyout,"\t\tpush.i\t#%d\n",entry.addresses.at(0));
+        else if (entry.data_type==REAL_TYPE)
+          fprintf(yyout,"\t\tpush.r\t#%d\n",entry.addresses.at(0));
+      }
+    }
+    fprintf(yyout,"\t\tcall\t#%s\n",entries_list.at(entries.at(0).local_variable_function_index).name.c_str());
+    token_value.entries->clear();
+  }else if (token==FUNCTION_CALL){
+    vector<Entry> entries=*(token_value.entries);
+    for (struct Entry entry: entries){
+      if (entry.token_type==VALUE){
+        if (entry.data_type==INT_TYPE)
+          fprintf(yyout,"\t\tpush.i\t#%d\n",entry.values.at(0));
+        else if (entry.data_type==REAL_TYPE)
+          fprintf(yyout,"\t\tpush.r\t#%f\n",entry.values.at(0));
+      }else {
+        if (entry.data_type==INT_TYPE)
+          fprintf(yyout,"\t\tpush.i\t#%d\n",entry.addresses.at(0));
+        else if (entry.data_type==REAL_TYPE)
+          fprintf(yyout,"\t\tpush.r\t#%d\n",entry.addresses.at(0));
+      }
+    }
+    struct Entry function=*(yylval.entry);
+    switch (function.data_type){
+      case INT_TYPE:
+        fprintf(yyout,"\t\tcall.i\t%s\n",function.name);
+        fprintf(yyout,"\t\tincsp.i\t#%d\n",function.addresses.at(0));
+        break;
+      case REAL_TYPE:
+        fprintf(yyout,"\t\tcall.r\t#%s\n",function.name);
+        fprintf(yyout,"\t\tincsp.r\t#%d\t",function.addresses.at(0));
+        break;
     }
   }else if (token==RETURN){
     fprintf(yyout,"\t\tleave\n\t\treturn\n");
@@ -704,7 +1251,7 @@ void close_pascal_file(){
 }
 
 void yyerror(char const * s){
-  printf("Error: %s",s);
+  printf("Error: %s\n",s);
   throw invalid_argument(s);
 }
 
@@ -728,7 +1275,7 @@ struct Entry keywords_dictionary[]={
   {"end",END},
   {":=",ASSIGNOP},
   {"+",SIGN},{"-",SIGN},
-  {"*",MULOP},{"/",MULOP},{"div",MULOP},{"mod",MULOP},
+  {"*",MULOP},{"/",MULOP},{"div",MULOP},{"mod",MULOP},{"and",MULOP},
   {"=",RELOP},{"<>",RELOP},{"<=",RELOP},{"<",RELOP},{"=>",RELOP},{">",RELOP}
 };
 
@@ -736,4 +1283,48 @@ void init(){
   struct Entry *p;
   for (p=keywords_dictionary;p->token;p++)
     insert(p->name,p->token,KEYWORD);
+}
+
+void convert_entries(struct Entry * entry1, struct Entry * entry2){
+  if (entry1->is_array_data_type && entry1->current_array_index!=-1){
+    struct Number value=entry1->values.at(entry1->current_array_index);
+    entry1->is_array_data_type=false;
+    entry1->addresses.clear();
+    entry1->values.clear();
+    entry1->first_index=0;
+    entry1->last_index=0;
+    entry1->values.push_back(value);
+  }
+  if (entry2->is_array_data_type && entry2->current_array_index!=-1){
+    struct Number value=entry2->values.at(entry2->current_array_index);
+    entry2->is_array_data_type=false;
+    entry2->addresses.clear();
+    entry2->values.clear();
+    entry2->first_index=0;
+    entry2->last_index=0;
+    entry2->values.push_back(value);
+  }
+  if (entry1->data_type!=entry2->data_type){
+    current_register++;
+    if (entry1->data_type==INT_TYPE){
+      yylval.real_to_int.entry_to_convert=entry2;
+      string real_to_int_variable_name="$t"+current_register;
+      int real_to_int_variable_index=insert_variable(real_to_int_variable_name,INT_TYPE,false,0,0,TEMPORARY);
+      entries_list.at(real_to_int_variable_index).values.at(0).integer=(int)(entry2->values.at(0).real);
+      printf("Temporal variable: %s",entries_list.at(real_to_int_variable_index).name.c_str());
+      entry2=&(entries_list.at(real_to_int_variable_index));
+      yylval.real_to_int.converted_entry=entry2;
+      print_assembly(REAL_TO_INT,yylval);
+    } else if (entry1->data_type==REAL_TYPE){
+      yylval.int_to_real.entry_to_convert=entry2;
+      string int_to_real_variable_name="$t"+current_register;
+      int int_to_real_variable_index=insert_variable(int_to_real_variable_name,REAL_TYPE,false,0,0,TEMPORARY);
+      entries_list.at(int_to_real_variable_index).values.at(0).real=(double)(entry2->values.at(0).integer);
+      printf("Temporal variable: %s",entries_list.at(int_to_real_variable_index).name.c_str());
+      entry2=&(entries_list.at(int_to_real_variable_index));
+      yylval.int_to_real.converted_entry=entry2;
+      print_assembly(INT_TO_REAL,yylval);
+    }
+    current_register--;
+  }
 }

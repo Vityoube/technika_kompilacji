@@ -11,15 +11,15 @@ int p;
 [\n\r]+ {}
 
 [0-9]([0-9])*  {
-                  printf("integer value: %d",yytext);
-                  sscanf(yytext,"%d",yylval.number.integer);
+                  printf("integer value: %d\n",atoi(yytext));
+                  yylval.number.integer=atoi(yytext);
                   yylval.number.type=INT_TYPE;
                   return NUM;
                 }
 
-[0-9]([0-9])*('.'[0-9]([0-9])*)?('E'('+'|'-'|'')[0-9]([0-9])*)? {
-                                                                  printf("real value : %d",yytext);
-                                                                  sscanf(yytext,"%d",yylval.number.real);
+[0-9]([0-9])*[.][0-9]([0-9])*('E'('+'|'-'|'')[0-9]([0-9])*)? {
+                                                                  printf("real value : %f\n",atof(yytext));
+                                                                  yylval.number.real=atof(yytext);
                                                                   yylval.number.type=REAL_TYPE;
                                                                   return NUM;
                                                                 }

@@ -92,6 +92,7 @@ int insert_variable(string variable_name, int standard_type, bool is_array, int 
   if (len + 1 >= NAMEMAX)
     throw invalid_argument("Too long name for variable");
   struct Entry variable;
+  variable.current_array_index=-1;
   variable.name=variable_name;
   variable.token=ID;
   if (visibility==GLOBAL)
@@ -171,6 +172,7 @@ int insert_procedure(string procedure_name,bool is_function, vector<int> argumen
   if (len + 1 >= NAMEMAX)
 	  throw invalid_argument("Too long name for procedure");
   struct Entry procedure;
+  procedure.current_array_index=-1;
   procedure.name=procedure_name;
   procedure.token=ID;
   procedure.token_type=PROCEDURE;
@@ -226,8 +228,9 @@ int insert_procedure(string procedure_name,bool is_function, vector<int> argumen
 		  				  }
 		  				  procedure.values.push_back(value);
 	  }
-    insert_variable(procedure_name,standard_return_type,is_array_return_type,first_index,last_index,LOCAL);
+    insert_variable(procedure_name,standard_return_type,is_array_return_type,first_index,last_index,ARG);
   } else{
+    procedure.addresses.push_back(last_address);
     last_address+=4;
   }
   lastentry++;
