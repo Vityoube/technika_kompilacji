@@ -100,6 +100,10 @@ extern int yydebug;
     int first_index;
     int last_index;
   };
+  struct Token_Identifier {
+    string * name;
+    int token;
+  };
   extern vector<string> current_identifiers_list;
   extern vector<int> current_declarations_indexes;
   extern vector<int> current_parameter_indexes;
@@ -119,9 +123,10 @@ extern int yydebug;
 		int standard_return_type, bool is_array_return_type, int first_index, int last_index
 		);
 	extern void init();
-  struct Entry  convert_entries(struct Entry * entry1, struct Entry * entry2);
+  struct Entry convert_entry(struct Entry entry);
+  struct Entry  convert_entries(struct Entry entry1, struct Entry entry2);
 
-#line 125 "parser.hpp" /* yacc.c:1909  */
+#line 130 "parser.hpp" /* yacc.c:1909  */
 
 /* Token type.  */
 #ifndef YYTOKENTYPE
@@ -185,7 +190,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 81 "parser.yy" /* yacc.c:1909  */
+#line 86 "parser.yy" /* yacc.c:1909  */
 
 	  int token;
 	  int token_type;
@@ -241,9 +246,10 @@ union YYSTYPE
       vector<Entry> * entries;
       struct Entry * entry;
     } function_call;
+     struct Token_Identifier token_identifier;
  
 
-#line 247 "parser.hpp" /* yacc.c:1909  */
+#line 253 "parser.hpp" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;
@@ -256,7 +262,7 @@ extern YYSTYPE yylval;
 
 int yyparse (void);
 /* "%code provides" blocks.  */
-#line 137 "parser.yy" /* yacc.c:1909  */
+#line 143 "parser.yy" /* yacc.c:1909  */
 
   void print_assembly(int token, YYSTYPE token_value);
   extern int yylex();
@@ -265,6 +271,6 @@ int yyparse (void);
 
  
 
-#line 269 "parser.hpp" /* yacc.c:1909  */
+#line 275 "parser.hpp" /* yacc.c:1909  */
 
 #endif /* !YY_YY_PARSER_HPP_INCLUDED  */

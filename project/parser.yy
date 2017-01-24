@@ -57,6 +57,10 @@
     int first_index;
     int last_index;
   };
+  struct Token_Identifier {
+    string * name;
+    int token;
+  };
   extern vector<string> current_identifiers_list;
   extern vector<int> current_declarations_indexes;
   extern vector<int> current_parameter_indexes;
@@ -76,7 +80,8 @@
 		int standard_return_type, bool is_array_return_type, int first_index, int last_index
 		);
 	extern void init();
-  struct Entry  convert_entries(struct Entry * entry1, struct Entry * entry2);
+  struct Entry convert_entry(struct Entry entry);
+  struct Entry  convert_entries(struct Entry entry1, struct Entry entry2);
 }
 %union {
 	  int token;
@@ -133,6 +138,7 @@
       vector<Entry> * entries;
       struct Entry * entry;
     } function_call;
+     struct Token_Identifier token_identifier;
  }
  %code provides{
   void print_assembly(int token, YYSTYPE token_value);
@@ -163,10 +169,10 @@
 %token <name> REAL "real";
 %token <name> NOT "not";
 %token <name> OR "or";
-%token <name> SIGN;
-%token <name> ASSIGNOP;
-%token <name> MULOP;
-%token <name> RELOP;
+%token <token_identifier> SIGN;
+%token <token_identifier> ASSIGNOP;
+%token <token_identifier> MULOP;
+%token <token_identifier> RELOP;
 %token <name> '(' ')' ';' '.' '[' ']' ':' '\n'
 %token <name> START
 %token <name> REAL_FUN
@@ -671,7 +677,9 @@ expression: simple_expression { $$=$1; }
             | simple_expression RELOP simple_expression {
                                                           struct Entry entry1=*$1;
                                                           struct Entry entry2=*$3;
-                                                          entry2=convert_entries(&entry1,&entry2);
+                                                          entry1=convert_entry(entry1);
+                                                          entry2=convert_entry(entry2);
+                                                          entry2=convert_entries(entry1,entry2);
                                                           current_register++;
                                                           string temporal_variable_name="$t"+to_string(current_register);
                                                           int temporal_variable_index=insert_variable(temporal_variable_name, entry1.data_type,false,0,0,TEMPORARY);
@@ -684,68 +692,70 @@ expression: simple_expression { $$=$1; }
                                                           relop_value.is_array_data_type=false;
                                                           relop_value.first_index=0;
                                                           relop_value.last_index=0;
+                                                          struct Token_Identifier relop_struct=$2;
+                                                          string relop=*(relop_struct.name);
                                                           struct Number value;
                                                           if ($$->data_type==INT_TYPE){
-                                                              if(($2)->compare(">")==0){
+                                                              if(relop.compare(">")==0){
                                                                  if (entry1.values.at(0).integer>entry2.values.at(0).integer)
                                                                    value.integer=1;
                                                                  else
                                                                   value.integer=0;
                                                               }
-                                                              else if (($2)->compare(">=")==0){
+                                                              else if (relop.compare(">=")==0){
                                                                 if (entry1.values.at(0).integer>=entry2.values.at(0).integer)
                                                                   value.integer=1;
                                                                 else
                                                                  value.integer=0;
-                                                             }else if (($2)->compare("<")==0){
+                                                             }else if (relop.compare("<")==0){
                                                                if (entry1.values.at(0).integer<entry2.values.at(0).integer)
                                                                  value.integer=1;
                                                                else
                                                                 value.integer=0;
-                                                              }else if (($2)->compare("<=")==0){
+                                                              }else if (relop.compare("<=")==0){
                                                                 if (entry1.values.at(0).integer<=entry2.values.at(0).integer)
                                                                   value.integer=1;
                                                                 else
                                                                  value.integer=0;
-                                                              }else if (($2)->compare("==")==0){
+                                                              }else if (relop.compare("==")==0){
                                                                 if (entry1.values.at(0).integer==entry2.values.at(0).integer)
                                                                   value.integer=1;
                                                                 else
                                                                  value.integer=0;
-                                                              } else if (($2)->compare("<>")==0){
+                                                              } else if (relop.compare("<>")==0){
                                                                 if (entry1.values.at(0).integer!=entry2.values.at(0).integer)
                                                                   value.integer=1;
                                                                 else
                                                                  value.integer=0;
                                                                }
                                                           } else if ($$->data_type==REAL_TYPE){
-                                                            if(($2)->compare(">")==0){
+                                                            if(relop.compare(">")==0){
                                                                  if (entry1.values.at(0).real>entry2.values.at(0).real)
                                                                    value.real=1.0;
                                                                  else
                                                                   value.real=0.0;
                                                                  break;
-                                                            }  else if (($2)->compare(">=")==0){
+                                                            }  else if (relop.compare(">=")==0){
                                                                 if (entry1.values.at(0).real>=entry2.values.at(0).real)
                                                                   value.real=1.0;
                                                                 else
                                                                  value.real=0.0;
-                                                             } else if (($2)->compare("<")==0){
+                                                             } else if (relop.compare("<")==0){
                                                                if (entry1.values.at(0).real<entry2.values.at(0).real)
                                                                  value.real=1.0;
                                                                else
                                                                 value.real=0.0;
-                                                              }else if (($2)->compare("<=")==0){
+                                                              }else if (relop.compare("<=")==0){
                                                                 if (entry1.values.at(0).real<=entry2.values.at(0).real)
                                                                   value.real=1.0;
                                                                 else
                                                                  value.real=0.0;
-                                                              }else if (($2)->compare("==")==0){
+                                                              }else if (relop.compare("==")==0){
                                                                 if (entry1.values.at(0).real==entry2.values.at(0).real)
                                                                   value.real=1.0;
                                                                 else
                                                                  value.real=0.0;
-                                                              }else if (($2)->compare("<>")==0){
+                                                              }else if (relop.compare("<>")==0){
                                                                 if (entry1.values.at(0).real!=entry2.values.at(0).real)
                                                                   value.real=1.0;
                                                                 else
@@ -764,16 +774,10 @@ expression: simple_expression { $$=$1; }
 simple_expression: term { $$=$1; }
                   | SIGN term {
                                 struct Entry entry=*$2;
-                                if (entry.is_array_data_type && entry.current_array_index!=-1){
-                                  struct Number value=entry.values.at(entry.current_array_index);
-                                  entry.is_array_data_type=false;
-                                  entry.addresses.clear();
-                                  entry.values.clear();
-                                  entry.first_index=0;
-                                  entry.last_index=0;
-                                  entry.values.push_back(value);
-                                }
-                                if (($1)->compare("-")==0){
+                                struct Token_Identifier sign_struct;
+                                string sign=*(sign_struct.name);
+                                entry=convert_entry(entry);
+                                if (sign.compare("-")==0){
                                   for (int i=0;i<entry.values.size();i++){
                                     if (entry.data_type==INT_TYPE)
                                       entry.values.at(i).integer=-entry.values.at(i).integer;
@@ -790,7 +794,7 @@ simple_expression: term { $$=$1; }
                                     printf("Temporal variable: %s\n",entry.name.c_str());
                                     yylval.mov.entry_to_assign=$2;
                                     yylval.mov.assigned_entry=new Entry(entry);
-                                    yylval.mov.assign_type=($2->token_type==VALUE) ? CONSTANT_ASSIGN : VARIABLE_ASSIGN;
+                                    yylval.mov.assign_type=(entry.token_type==VALUE) ? CONSTANT_ASSIGN : VARIABLE_ASSIGN;
                                     print_assembly(MOV,yylval);
                                     current_register--;
                                 }
@@ -799,13 +803,17 @@ simple_expression: term { $$=$1; }
                   | simple_expression SIGN term {
                                                   struct Entry entry1=*$1;
                                                   struct Entry entry2=*$3;
-                                                  entry2=convert_entries(&entry1,&entry2);
+                                                  entry1=convert_entry(entry1);
+                                                  entry2=convert_entry(entry2);
+                                                  entry2=convert_entries(entry1,entry2);
                                                   current_register++;
+                                                  struct Token_Identifier sign_struct=$2;
+                                                  string sign=*(sign_struct.name);
                                                   string temporal_variable_name="$t"+to_string(current_register);
                                                   int temporal_variable_index=insert_variable(temporal_variable_name,entry1.data_type,false,0,0,TEMPORARY);
                                                   printf("Temporal variable: %s\n",entries_list.at(temporal_variable_index).name);
                                                   $$=new Entry(entries_list.at(temporal_variable_index));
-                                                  if ($2->compare("+")==0){
+                                                  if ((sign).compare("+")==0){
                                                     if (entry1.data_type==INT_TYPE){
                                                       $$->values.at(0).integer=entry1.values.at(0).integer+entry2.values.at(0).integer;
                                                       yylval.add.entry1=new Entry(entry1);
@@ -819,7 +827,7 @@ simple_expression: term { $$=$1; }
                                                       yylval.add.result=$$;
                                                       print_assembly(ADDR,yylval);
                                                     }
-                                                  } else if ($2->compare("-")==0){
+                                                  } else if ((sign).compare("-")==0){
                                                     if (entry1.data_type==INT_TYPE){
                                                       $$->values.at(0).integer=entry1.values.at(0).integer-entry2.values.at(0).integer;
                                                       yylval.sub.entry1=new Entry(entry1);
@@ -839,7 +847,7 @@ simple_expression: term { $$=$1; }
                   | simple_expression or term {
                                                 struct Entry entry1=*$1;
                                                 struct Entry entry2=*$3;
-                                                entry2=convert_entries(&entry1,&entry2);
+                                                entry2=convert_entries(entry1,entry2);
                                                 yylval.Or.entry1=new Entry(entry1);
                                                 yylval.Or.entry2=new Entry(entry2);
                                                 if (entry1.data_type==INT_TYPE){
@@ -876,20 +884,24 @@ term: factor  { $$=$1; }
       | term MULOP factor  {
                               struct Entry entry1=*$1;
                               struct Entry entry2=*$3;
-                              entry2=convert_entries(&entry1,&entry2);
+                              entry1=convert_entry(entry1);
+                              entry2=convert_entry(entry2);
+                              entry2=convert_entries(entry1,entry2);
                               string mulop_variable_name="$t"+to_string(current_register);
                               yylval.mulop.entry1=new Entry(entry1);
                               yylval.mulop.entry2=new Entry(entry2);
+                              struct Token_Identifier mulop_struct=$2;
+                              string mulop=*(mulop_struct.name);
                               if (entry1.data_type==INT_TYPE){
                                 current_register++;
                                 int mulop_expression_int_index=insert_variable(mulop_variable_name,INT_TYPE,false,0,0,TEMPORARY);
                                 $$=new Entry(entries_list.at(mulop_expression_int_index));
                                 printf("Temporal variable: %s\n",$$->name.c_str());
-                                if (($2)->compare("*")==0){
+                                if (mulop.compare("*")==0){
                                     $$->values.at(0).integer=entry1.values.at(0).integer * entry2.values.at(0).integer;
                                     yylval.mulop.result=$$;
                                     print_assembly(MULI,yylval);
-                                } else if (($2)->compare("/")==0 || ($2)->compare("div")==0){
+                                } else if (mulop.compare("/")==0 || mulop.compare("div")==0){
                                     if (entry2.values.at(0).integer==0){
                                       current_register--;
                                       yyerror("Division by 0");
@@ -898,7 +910,7 @@ term: factor  { $$=$1; }
                                     yylval.mulop.result=$$;
                                     print_assembly(DIVI,yylval);
                                     break;
-                                  }else if (($2)->compare("mod")==0){
+                                  }else if (mulop.compare("mod")==0){
                                     if (entry2.values.at(0).integer==0){
                                       current_register--;
                                       yyerror("Mod by 0");
@@ -906,7 +918,7 @@ term: factor  { $$=$1; }
                                     $$->values.at(0).integer=entry1.values.at(0).integer % entry2.values.at(0).integer;
                                     yylval.mulop.result=$$;
                                     print_assembly(MOD,yylval);
-                                  }else if (($2)->compare("and")==0){
+                                  }else if (mulop.compare("and")==0){
                                   if (entry1.values.at(0).integer==0 || entry2.values.at(0).integer==0)
                                         $$->values.at(0).integer=0;
                                     else
@@ -918,19 +930,19 @@ term: factor  { $$=$1; }
                                    int mulop_real_expression_index=insert_variable(mulop_variable_name,REAL_TYPE,false,0,0,TEMPORARY);
                                    $$=new Entry(entries_list.at(mulop_real_expression_index));
                                    printf("Temporal variable: %s\n",$$->name.c_str());
-                                   if (($2)->compare("*")==0){
+                                   if (mulop.compare("*")==0){
                                       $$->values.at(0).real=entry1.values.at(0).real * entry2.values.at(0).real;
                                       yylval.mulop.result=$$;
                                       print_assembly(MULR,yylval);
-                                  } else if (($2)->compare("/")==0){
+                                  } else if (mulop.compare("/")==0){
                                       $$->values.at(0).real=entry1.values.at(0).real * entry2.values.at(0).real;
                                       yylval.mulop.result=$$;
                                       print_assembly(DIVR,yylval);
-                                  } else if (($2)->compare("div")==0){
+                                  } else if (mulop.compare("div")==0){
                                       $$->values.at(0).integer=(int)(entry1.values.at(0).real)/(int)(entry2.values.at(0).real);
                                       yylval.mulop.result=$$;
                                       print_assembly(DIVI,yylval);
-                                  } else if (($2)->compare("and")==0){
+                                  } else if (mulop.compare("and")==0){
                                      if (entry1.values.at(0).real==0.0 || entry2.values.at(0).real==0.0)
                                            $$->values.at(0).real=0.0;
                                        else
@@ -1057,33 +1069,33 @@ void print_assembly(int token, YYSTYPE token_value){
   }else if (token==MOV){
     vector<int> assigned_entry_indexes=*(token_value.mov.assigned_entry_indexes);
     vector<int> entry_to_assign_indexes=*(token_value.mov.entry_to_assign_indexes);
-      if (yylval.mov.assign_type==CONSTANT_ASSIGN){
+      if (token_value.mov.assign_type==CONSTANT_ASSIGN){
         for (int i=0,j=0;i<assigned_entry_indexes.size(),j<entry_to_assign_indexes.size();i++,j++){
-          if (yylval.mov.assigned_entry->data_type==INT_TYPE){
-            fprintf(yyout,"\t\tmov.i\t%d, #%d\n",yylval.mov.assigned_entry->addresses.at(assigned_entry_indexes.at(i)),
+          if (token_value.mov.assigned_entry->data_type==INT_TYPE){
+            fprintf(yyout,"\t\tmov.i\t%d, #%d\n",token_value.mov.assigned_entry->addresses.at(assigned_entry_indexes.at(i)),
               yylval.mov.entry_to_assign->values.at(0).integer);
-          } else if (yylval.mov.assigned_entry->data_type=REAL_TYPE){
-            fprintf(yyout,"\t\tmov.r\t%d, #%d\n",yylval.mov.assigned_entry->addresses.at(assigned_entry_indexes.at(i)),yylval.mov.entry_to_assign->values.at(0).real);
+          } else if (token_value.mov.assigned_entry->data_type==REAL_TYPE){
+            fprintf(yyout,"\t\tmov.r\t%d, #%f\n",token_value.mov.assigned_entry->addresses.at(assigned_entry_indexes.at(i)),token_value.mov.entry_to_assign->values.at(0).real);
           }
         }
-      }else if (yylval.mov.assign_type==VARIABLE_ASSIGN){
+      }else if (token_value.mov.assign_type==VARIABLE_ASSIGN){
          for (int i=0,j=0;i<assigned_entry_indexes.size(),j<entry_to_assign_indexes.size();i++,j++){
-           if (yylval.mov.assigned_entry->data_type==INT_TYPE){
-             fprintf(yyout,"\t\tmov.i\t%d, %d\n",yylval.mov.assigned_entry->addresses.at(assigned_entry_indexes.at(i)),
-              yylval.mov.entry_to_assign->addresses.at(entry_to_assign_indexes.at(j)));
-           } else if (yylval.mov.assigned_entry->data_type=REAL_TYPE){
-             fprintf(yyout,"\t\tmov.r\t%d, %d\n",yylval.mov.assigned_entry->addresses.at(assigned_entry_indexes.at(i)),
-              yylval.mov.entry_to_assign->addresses.at(entry_to_assign_indexes.at(j)));
+           if (token_value.mov.assigned_entry->data_type==INT_TYPE){
+             fprintf(yyout,"\t\tmov.i\t%d, %d\n",token_value.mov.assigned_entry->addresses.at(assigned_entry_indexes.at(i)),
+              token_value.mov.entry_to_assign->addresses.at(entry_to_assign_indexes.at(j)));
+           } else if (yylval.mov.assigned_entry->data_type==REAL_TYPE){
+             fprintf(yyout,"\t\tmov.r\t%d, %d\n",token_value.mov.assigned_entry->addresses.at(assigned_entry_indexes.at(i)),
+              token_value.mov.entry_to_assign->addresses.at(entry_to_assign_indexes.at(j)));
            }
          }
        }
   }else if (token==INT_TO_REAL){
-    if (token_value.int_to_real.entry_to_convert->token_type=VALUE)
+    if (token_value.int_to_real.entry_to_convert->token_type==VALUE)
       fprintf(yyout, "\t\tinttoreal.i\t%d, #%d\n",token_value.int_to_real.converted_entry->addresses.at(0),token_value.int_to_real.entry_to_convert->values.at(0).integer);
     else
       fprintf(yyout,"\t\tinttoreal.i\t%d, %d\n",token_value.int_to_real.converted_entry->addresses.at(0),token_value.int_to_real.entry_to_convert->addresses.at(0));
   } else if (token==REAL_TO_INT){
-    if (token_value.int_to_real.entry_to_convert->token_type=VALUE)
+    if (token_value.int_to_real.entry_to_convert->token_type==VALUE)
       fprintf(yyout, "\t\trealtoint.r\t%d, #%f\n",token_value.int_to_real.converted_entry->addresses.at(0),token_value.int_to_real.entry_to_convert->values.at(0).real);
     else
       fprintf(yyout,"\t\trealtoint.i\t%d, %d\n",token_value.int_to_real.converted_entry->addresses.at(0),token_value.int_to_real.entry_to_convert->addresses.at(0));
@@ -1357,47 +1369,43 @@ void init(){
     insert(p->name,p->token,KEYWORD);
 }
 
-struct Entry convert_entries(struct Entry * entry1, struct Entry * entry2){
-  if (entry1->is_array_data_type && entry1->current_array_index!=-1){
-    struct Number value=entry1->values.at(entry1->current_array_index);
-    entry1->is_array_data_type=false;
-    entry1->addresses.clear();
-    entry1->values.clear();
-    entry1->first_index=0;
-    entry1->last_index=0;
-    entry1->values.push_back(value);
-  }
-  if (entry2->is_array_data_type && entry2->current_array_index!=-1){
-    struct Number value=entry2->values.at(entry2->current_array_index);
-    entry2->is_array_data_type=false;
-    entry2->addresses.clear();
-    entry2->values.clear();
-    entry2->first_index=0;
-    entry2->last_index=0;
-    entry2->values.push_back(value);
-  }
-  if (entry1->data_type!=entry2->data_type){
+struct Entry convert_entries(struct Entry entry1, struct Entry entry2){
+  if (entry1.data_type!=entry2.data_type){
     current_register++;
-    if (entry1->data_type==INT_TYPE){
-      yylval.real_to_int.entry_to_convert=entry2;
+    if (entry1.data_type==INT_TYPE){
+      yylval.real_to_int.entry_to_convert=new Entry(entry2);
       string real_to_int_variable_name="$t"+to_string(current_register);
       int real_to_int_variable_index=insert_variable(real_to_int_variable_name,INT_TYPE,false,0,0,TEMPORARY);
-      entries_list.at(real_to_int_variable_index).values.at(0).integer=(int)(entry2->values.at(0).real);
+      entries_list.at(real_to_int_variable_index).values.at(0).integer=(int)(entry2.values.at(0).real);
       printf("Temporal variable: %s\n",entries_list.at(real_to_int_variable_index).name.c_str());
-      entry2=&(entries_list.at(real_to_int_variable_index));
-      yylval.real_to_int.converted_entry=entry2;
+      entry2=(entries_list.at(real_to_int_variable_index));
+      yylval.real_to_int.converted_entry=new Entry(entry2);
       print_assembly(REAL_TO_INT,yylval);
-    } else if (entry1->data_type==REAL_TYPE){
-      yylval.int_to_real.entry_to_convert=entry2;
+    } else if (entry1.data_type==REAL_TYPE){
+      yylval.int_to_real.entry_to_convert=new Entry(entry2);
       string int_to_real_variable_name="$t"+to_string(current_register);
       int int_to_real_variable_index=insert_variable(int_to_real_variable_name,REAL_TYPE,false,0,0,TEMPORARY);
-      entries_list.at(int_to_real_variable_index).values.at(0).real=(double)(entry2->values.at(0).integer);
+      entries_list.at(int_to_real_variable_index).values.at(0).real=(double)(entry2.values.at(0).integer);
       printf("Temporal variable: %s\n",entries_list.at(int_to_real_variable_index).name.c_str());
-      entry2=&(entries_list.at(int_to_real_variable_index));
-      yylval.int_to_real.converted_entry=entry2;
+      entry2=(entries_list.at(int_to_real_variable_index));
+      yylval.int_to_real.converted_entry=new Entry(entry2);
       print_assembly(INT_TO_REAL,yylval);
     }
     current_register--;
-    return *entry2;
   }
+  return entry2;
+}
+struct Entry convert_entry(struct Entry entry){
+  if (entry.is_array_data_type && entry.current_array_index!=-1){
+    struct Number value=entry.values.at(entry.current_array_index);
+    int current_array_index_address=entry.addresses.at(entry.current_array_index);
+    entry.is_array_data_type=false;
+    entry.addresses.clear();
+    entry.values.clear();
+    entry.first_index=0;
+    entry.last_index=0;
+    entry.values.push_back(value);
+    entry.addresses.push_back(current_array_index_address);
+  }
+  return entry;
 }

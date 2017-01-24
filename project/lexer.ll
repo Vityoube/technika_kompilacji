@@ -2,6 +2,7 @@
 %{
     #include "parser.hpp"
 %}
+%pointer
 %%
 %{
 int p;
@@ -32,8 +33,8 @@ int p;
                             yylval.name=new string(yytext);
                             return ID;
                           }
-                          yylval.token=entries_list.at(p).token;
-                          yylval.name=new string(entries_list.at(p).name);
+                          yylval.token_identifier.token=entries_list.at(p).token;
+                          yylval.token_identifier.name=new string(entries_list.at(p).name);
                           return entries_list.at(p).token;
                         }
 
@@ -42,12 +43,23 @@ int p;
         }
 
 ":="    {
-          yylval.name=new string(yytext);
+          yylval.token_identifier.name=new string(yytext);
+          yylval.token_identifier.token=ASSIGNOP;
           return ASSIGNOP;
         }
-
+"+"|"-" {
+          yylval.token_identifier.name=new string(yytext);
+          yylval.token_identifier.token=SIGN;
+          return SIGN;
+        }
+"*"|"/"|"div"|"mod"|"and" {
+                            yylval.token_identifier.name=new string(yytext);
+                            yylval.token_identifier.token=MULOP;
+                            return MULOP;
+                          }
 ">="|"<="|"<"|">"|"="|"<>"         {
-                                      yylval.name=new string(yytext);
+                                      yylval.token_identifier.name=new string(yytext);
+                                      yylval.token_identifier.token=RELOP;
                                       return RELOP;
                                     }
 
@@ -59,8 +71,8 @@ int p;
             yylval.name=new string(yytext);
             return yytext[yyleng-1];
           }
-          yylval.token=entries_list.at(p).token;
-          yylval.name=new string(entries_list.at(p).name);
+          yylval.token_identifier.token=entries_list.at(p).token;
+          yylval.token_identifier.name=new string(entries_list.at(p).name);
           return entries_list.at(p).token;
         }
 %%

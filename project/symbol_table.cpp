@@ -21,7 +21,7 @@ lookup (char* name,int token_type)
 {
   int p;
   for (p = 0; p <=lastentry; p++)
-    if (entries_list.at(p).name.compare(name) == 0 && entries_list.at(p).token_type==token_type)
+    if (entries_list.at(p).name==name  && entries_list.at(p).token_type==token_type)
     	return p;
   return -1;
 }
@@ -29,7 +29,7 @@ lookup (char* name,int token_type)
 int find_procedure(string name, vector<int> arguments_indexes, int return_type){
   int p;
   for (p = 0; p <=lastentry; p++)
-    if (entries_list.at(p).name.compare(name)==0 && entries_list.at(p).token_type==PROCEDURE &&
+    if (entries_list.at(p).name==name && entries_list.at(p).token_type==PROCEDURE &&
       entries_list.at(p).arguments_indexes==arguments_indexes && entries_list.at(p).data_type==return_type )
         return p;
   return -1;
@@ -37,7 +37,7 @@ int find_procedure(string name, vector<int> arguments_indexes, int return_type){
 
 int find_procedure(string name, vector<int> arguments_types, vector<bool> is_array,vector<int> sizes){
   for (int p=0;p<=lastentry;p++)
-  if (entries_list.at(p).name.compare(name)==0 && entries_list.at(p).token_type==PROCEDURE &&
+  if (entries_list.at(p).name==name && entries_list.at(p).token_type==PROCEDURE &&
         entries_list.at(p).arguments_indexes.size()==arguments_types.size()){
           int current_procedure_argument_index;
           for (current_procedure_argument_index=0;current_procedure_argument_index<arguments_types.size();current_procedure_argument_index++)
@@ -52,7 +52,7 @@ int find_procedure(string name, vector<int> arguments_types, vector<bool> is_arr
 int find_global_variable(string name){
   int p;
   for (p=0;p<=lastentry;p++)
-    if(entries_list.at(p).name.compare(name)==0 && entries_list.at(p).token_type==GLOBAL_VARIABLE)
+    if(entries_list.at(p).name==name && entries_list.at(p).token_type==GLOBAL_VARIABLE)
       return p;
   return -1;
 }
@@ -60,7 +60,7 @@ int find_global_variable(string name){
 int find_local_variable(string name, int function_index){
   int p;
   for (p=0;p<=lastentry;p++)
-    if (entries_list.at(p).name.compare(name) && (entries_list.at(p).token_type==LOCAL_VARIABLE || entries_list.at(p).token_type==ARGUMENT)
+    if (entries_list.at(p).name==name && (entries_list.at(p).token_type==LOCAL_VARIABLE || entries_list.at(p).token_type==ARGUMENT)
       && entries_list.at(p).local_variable_function_index==function_index)
         return p;
     return -1;
@@ -226,7 +226,8 @@ int insert_procedure(string procedure_name,bool is_function, vector<int> argumen
 		  				  }
 		  				  procedure.values.push_back(value);
 	  }
-    insert_variable(procedure_name,standard_return_type,is_array_return_type,first_index,last_index,ARG);
+    int function_variable_index=insert_variable(procedure_name,standard_return_type,is_array_return_type,first_index,last_index,ARG);
+    assign_procedure_to_local_variable(function_variable_index,lastentry+1);
   } else{
     procedure.addresses.push_back(last_address);
     last_address+=4;
