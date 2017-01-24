@@ -60,7 +60,7 @@ int find_global_variable(string name){
 int find_local_variable(string name, int function_index){
   int p;
   for (p=0;p<=lastentry;p++)
-    if (entries_list.at(p).name.compare(name) && entries_list.at(p).token_type==LOCAL_VARIABLE
+    if (entries_list.at(p).name.compare(name) && (entries_list.at(p).token_type==LOCAL_VARIABLE || entries_list.at(p).token_type==ARGUMENT)
       && entries_list.at(p).local_variable_function_index==function_index)
         return p;
     return -1;
@@ -99,7 +99,7 @@ int insert_variable(string variable_name, int standard_type, bool is_array, int 
     variable.token_type=GLOBAL_VARIABLE;
   else if (visibility==LOCAL)
     variable.token_type=LOCAL_VARIABLE;
-  else if (visibility=ARG)
+  else if (visibility==ARG)
     variable.token_type=ARGUMENT;
   else if (visibility==TEMPORARY)
     variable.token_type=TEMPORARY_VARIABLE;
@@ -111,7 +111,7 @@ int insert_variable(string variable_name, int standard_type, bool is_array, int 
 	  if (first_index<=last_index && first_index>=0 && last_index>=0){
       variable.first_index=first_index;
       variable.last_index=last_index;
-		  for (int i=0;i<last_index;i++){
+		  for (int i=0;i<=last_index;i++){
 		  		  switch (value.type){
 		  		   case INT_TYPE:
 		  		 	  value.integer=0;
@@ -139,12 +139,10 @@ int insert_variable(string variable_name, int standard_type, bool is_array, int 
 	  case INT_TYPE:
 		  value.integer=0;
       variable.addresses.push_back(last_address);
-      variable.addresses.push_back(last_address);
       last_address+=4;
 		  break;
 	  case REAL_TYPE:
 		  value.real=0.0;
-      variable.addresses.push_back(last_address);
       variable.addresses.push_back(last_address);
       last_address+=8;
 		  break;
@@ -189,7 +187,7 @@ int insert_procedure(string procedure_name,bool is_function, vector<int> argumen
 		  if (first_index<=last_index && first_index>=0 && last_index>=0){
         procedure.first_index=first_index;
         procedure.last_index=last_index;
-			  for (int i=0;i<last_index;i++){
+			  for (int i=0;i<=last_index;i++){
 				  switch (procedure.data_type){
 				  case INT_TYPE:
 					  value.integer=0;

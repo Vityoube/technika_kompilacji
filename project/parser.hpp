@@ -119,7 +119,7 @@ extern int yydebug;
 		int standard_return_type, bool is_array_return_type, int first_index, int last_index
 		);
 	extern void init();
-  void convert_entries(struct Entry * entry1, struct Entry * entry2);
+  struct Entry  convert_entries(struct Entry * entry1, struct Entry * entry2);
 
 #line 125 "parser.hpp" /* yacc.c:1909  */
 
@@ -206,7 +206,8 @@ union YYSTYPE
       int assign_type;
       struct Entry * entry_to_assign;
       struct Entry * assigned_entry;
-      vector<int> * changed_values_indexes;
+      vector<int> * assigned_entry_indexes;
+      vector<int> * entry_to_assign_indexes;
     } mov;
     struct Mulop {
       struct Entry * entry1;
@@ -236,9 +237,13 @@ union YYSTYPE
       struct Entry * entry2;
       struct Entry * result;
     } sub;
+    struct  Function_Call{
+      vector<Entry> * entries;
+      struct Entry * entry;
+    } function_call;
  
 
-#line 242 "parser.hpp" /* yacc.c:1909  */
+#line 247 "parser.hpp" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;
@@ -251,7 +256,7 @@ extern YYSTYPE yylval;
 
 int yyparse (void);
 /* "%code provides" blocks.  */
-#line 132 "parser.yy" /* yacc.c:1909  */
+#line 137 "parser.yy" /* yacc.c:1909  */
 
   void print_assembly(int token, YYSTYPE token_value);
   extern int yylex();
@@ -260,6 +265,6 @@ int yyparse (void);
 
  
 
-#line 264 "parser.hpp" /* yacc.c:1909  */
+#line 269 "parser.hpp" /* yacc.c:1909  */
 
 #endif /* !YY_YY_PARSER_HPP_INCLUDED  */

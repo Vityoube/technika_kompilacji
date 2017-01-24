@@ -172,7 +172,7 @@ extern int yydebug;
 		int standard_return_type, bool is_array_return_type, int first_index, int last_index
 		);
 	extern void init();
-  void convert_entries(struct Entry * entry1, struct Entry * entry2);
+  struct Entry  convert_entries(struct Entry * entry1, struct Entry * entry2);
 
 #line 178 "parser.cpp" /* yacc.c:355  */
 
@@ -259,7 +259,8 @@ union YYSTYPE
       int assign_type;
       struct Entry * entry_to_assign;
       struct Entry * assigned_entry;
-      vector<int> * changed_values_indexes;
+      vector<int> * assigned_entry_indexes;
+      vector<int> * entry_to_assign_indexes;
     } mov;
     struct Mulop {
       struct Entry * entry1;
@@ -289,9 +290,13 @@ union YYSTYPE
       struct Entry * entry2;
       struct Entry * result;
     } sub;
+    struct  Function_Call{
+      vector<Entry> * entries;
+      struct Entry * entry;
+    } function_call;
  
 
-#line 295 "parser.cpp" /* yacc.c:355  */
+#line 300 "parser.cpp" /* yacc.c:355  */
 };
 
 typedef union YYSTYPE YYSTYPE;
@@ -304,7 +309,7 @@ extern YYSTYPE yylval;
 
 int yyparse (void);
 /* "%code provides" blocks.  */
-#line 132 "parser.yy" /* yacc.c:355  */
+#line 137 "parser.yy" /* yacc.c:355  */
 
   void print_assembly(int token, YYSTYPE token_value);
   extern int yylex();
@@ -313,12 +318,12 @@ int yyparse (void);
 
  
 
-#line 317 "parser.cpp" /* yacc.c:355  */
+#line 322 "parser.cpp" /* yacc.c:355  */
 
 #endif /* !YY_YY_PARSER_HPP_INCLUDED  */
 
 /* Copy the second part of user declarations.  */
-#line 214 "parser.yy" /* yacc.c:358  */
+#line 219 "parser.yy" /* yacc.c:358  */
 
   int last_parameter=-1;
   bool local_scope=false;
@@ -329,7 +334,7 @@ int yyparse (void);
   vector<Entry> current_expressions;
   vector<Entry> current_argument_entries;
 
-#line 333 "parser.cpp" /* yacc.c:358  */
+#line 338 "parser.cpp" /* yacc.c:358  */
 
 #ifdef short
 # undef short
@@ -631,12 +636,12 @@ static const yytype_uint8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   227,   227,   233,   236,   240,   245,   258,   260,   261,
-     281,   289,   303,   304,   307,   308,   312,   324,   355,   385,
-     386,   389,   409,   431,   436,   442,   443,   445,   446,   450,
-     465,   478,   479,   480,   483,   485,   487,   489,   491,   494,
-     510,   548,   558,   597,   602,   609,   610,   703,   704,   738,
-     778,   812,   814,   815,   894,   895,   914,   925,   926
+       0,   232,   232,   238,   241,   245,   250,   263,   265,   266,
+     286,   294,   308,   309,   312,   313,   317,   329,   360,   390,
+     391,   394,   414,   436,   441,   447,   448,   450,   451,   455,
+     524,   537,   538,   539,   542,   544,   546,   548,   550,   553,
+     570,   609,   619,   658,   663,   670,   671,   764,   765,   799,
+     839,   873,   875,   876,   955,   956,   976,   991,   992
 };
 #endif
 
@@ -1243,45 +1248,45 @@ yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep)
   switch (yytype)
     {
           case 74: /* begin  */
-#line 207 "parser.yy" /* yacc.c:1257  */
+#line 212 "parser.yy" /* yacc.c:1257  */
       {}
-#line 1249 "parser.cpp" /* yacc.c:1257  */
+#line 1254 "parser.cpp" /* yacc.c:1257  */
         break;
 
     case 78: /* If  */
-#line 211 "parser.yy" /* yacc.c:1257  */
+#line 216 "parser.yy" /* yacc.c:1257  */
       {}
-#line 1255 "parser.cpp" /* yacc.c:1257  */
+#line 1260 "parser.cpp" /* yacc.c:1257  */
         break;
 
     case 79: /* Then  */
-#line 212 "parser.yy" /* yacc.c:1257  */
+#line 217 "parser.yy" /* yacc.c:1257  */
       {}
-#line 1261 "parser.cpp" /* yacc.c:1257  */
+#line 1266 "parser.cpp" /* yacc.c:1257  */
         break;
 
     case 80: /* Else  */
-#line 213 "parser.yy" /* yacc.c:1257  */
+#line 218 "parser.yy" /* yacc.c:1257  */
       {}
-#line 1267 "parser.cpp" /* yacc.c:1257  */
+#line 1272 "parser.cpp" /* yacc.c:1257  */
         break;
 
     case 81: /* While  */
-#line 209 "parser.yy" /* yacc.c:1257  */
+#line 214 "parser.yy" /* yacc.c:1257  */
       {}
-#line 1273 "parser.cpp" /* yacc.c:1257  */
+#line 1278 "parser.cpp" /* yacc.c:1257  */
         break;
 
     case 82: /* Do  */
-#line 210 "parser.yy" /* yacc.c:1257  */
+#line 215 "parser.yy" /* yacc.c:1257  */
       {}
-#line 1279 "parser.cpp" /* yacc.c:1257  */
+#line 1284 "parser.cpp" /* yacc.c:1257  */
         break;
 
     case 88: /* or  */
-#line 208 "parser.yy" /* yacc.c:1257  */
+#line 213 "parser.yy" /* yacc.c:1257  */
       {}
-#line 1285 "parser.cpp" /* yacc.c:1257  */
+#line 1290 "parser.cpp" /* yacc.c:1257  */
         break;
 
 
@@ -1543,42 +1548,42 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 227 "parser.yy" /* yacc.c:1646  */
+#line 232 "parser.yy" /* yacc.c:1646  */
     {
                                                                                                                     print_assembly(DONE,yylval);
                                                                                                                     YYACCEPT;
                                                                                                                 }
-#line 1552 "parser.cpp" /* yacc.c:1646  */
+#line 1557 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 3:
-#line 233 "parser.yy" /* yacc.c:1646  */
+#line 238 "parser.yy" /* yacc.c:1646  */
     {
-                                  current_identifiers_list.clear();
+                                  //current_identifiers_list.clear();
                               }
-#line 1560 "parser.cpp" /* yacc.c:1646  */
+#line 1565 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 4:
-#line 236 "parser.yy" /* yacc.c:1646  */
+#line 241 "parser.yy" /* yacc.c:1646  */
     {
                       string identifier=*(yyvsp[0].name);
                       current_identifiers_list.push_back(identifier);
                     }
-#line 1569 "parser.cpp" /* yacc.c:1646  */
+#line 1574 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 5:
-#line 240 "parser.yy" /* yacc.c:1646  */
+#line 245 "parser.yy" /* yacc.c:1646  */
     {
                                             string identifier=*(yyvsp[0].name);
                                             current_identifiers_list.push_back(identifier);
                                           }
-#line 1578 "parser.cpp" /* yacc.c:1646  */
+#line 1583 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 6:
-#line 245 "parser.yy" /* yacc.c:1646  */
+#line 250 "parser.yy" /* yacc.c:1646  */
     {
                                                                             for (string identifier: current_identifiers_list){
                                                                               int p=find_global_variable(identifier);
@@ -1592,17 +1597,17 @@ yyreduce:
                                                                             }
                                                                             current_identifiers_list.clear();
                                                                           }
-#line 1596 "parser.cpp" /* yacc.c:1646  */
+#line 1601 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 7:
-#line 258 "parser.yy" /* yacc.c:1646  */
+#line 263 "parser.yy" /* yacc.c:1646  */
     { print_assembly(START,yylval); }
-#line 1602 "parser.cpp" /* yacc.c:1646  */
+#line 1607 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 9:
-#line 261 "parser.yy" /* yacc.c:1646  */
+#line 266 "parser.yy" /* yacc.c:1646  */
     {
                                                                             struct Type type=(yyvsp[-1].data_type);
                                                                             for (string identifier: current_identifiers_list){
@@ -1623,11 +1628,11 @@ yyreduce:
                                                                             }
                                                                             current_identifiers_list.clear();
                                                                           }
-#line 1627 "parser.cpp" /* yacc.c:1646  */
+#line 1632 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 10:
-#line 281 "parser.yy" /* yacc.c:1646  */
+#line 286 "parser.yy" /* yacc.c:1646  */
     {
 						            struct Type type;
                         type.standard_type=(yyvsp[0].standard_type);
@@ -1636,11 +1641,11 @@ yyreduce:
                         type.last_index=0;
                         (yyval.data_type)=type;
 					          }
-#line 1640 "parser.cpp" /* yacc.c:1646  */
+#line 1645 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 11:
-#line 289 "parser.yy" /* yacc.c:1646  */
+#line 294 "parser.yy" /* yacc.c:1646  */
     {
                                                       struct Type type;
                                                       type.standard_type=(yyvsp[0].standard_type);
@@ -1653,23 +1658,23 @@ yyreduce:
                                                       type.last_index=last_index_NUM.integer;
                                                       (yyval.data_type)=type;
       												                    }
-#line 1657 "parser.cpp" /* yacc.c:1646  */
+#line 1662 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 12:
-#line 303 "parser.yy" /* yacc.c:1646  */
+#line 308 "parser.yy" /* yacc.c:1646  */
     { (yyval.standard_type)=INT_TYPE;  }
-#line 1663 "parser.cpp" /* yacc.c:1646  */
+#line 1668 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 13:
-#line 304 "parser.yy" /* yacc.c:1646  */
+#line 309 "parser.yy" /* yacc.c:1646  */
     { (yyval.standard_type)=REAL_TYPE; }
-#line 1669 "parser.cpp" /* yacc.c:1646  */
+#line 1674 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 16:
-#line 314 "parser.yy" /* yacc.c:1646  */
+#line 319 "parser.yy" /* yacc.c:1646  */
     {
                                               current_procedure_index=-1;
                                               current_parameter_indexes.clear();
@@ -1677,11 +1682,11 @@ yyreduce:
                                               local_scope=false;
                                               print_assembly(RETURN,yylval);
                                              }
-#line 1681 "parser.cpp" /* yacc.c:1646  */
+#line 1686 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 17:
-#line 324 "parser.yy" /* yacc.c:1646  */
+#line 329 "parser.yy" /* yacc.c:1646  */
     {
                                                             string function_name=*(yyvsp[-4].name);
                                                             vector<int> arguments_types;
@@ -1713,11 +1718,11 @@ yyreduce:
                                                               print_assembly(REAL_FUN,yylval);
                                                             local_scope=true;
                                                         }
-#line 1717 "parser.cpp" /* yacc.c:1646  */
+#line 1722 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 18:
-#line 355 "parser.yy" /* yacc.c:1646  */
+#line 360 "parser.yy" /* yacc.c:1646  */
     {
                                                             string procedure_name=*(yyvsp[-2].name);
                                                             vector<int> arguments_types;
@@ -1745,17 +1750,17 @@ yyreduce:
                                                             print_assembly(PROC,yylval);
                                                             local_scope=true;
                                                         }
-#line 1749 "parser.cpp" /* yacc.c:1646  */
+#line 1754 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 20:
-#line 386 "parser.yy" /* yacc.c:1646  */
+#line 391 "parser.yy" /* yacc.c:1646  */
     {  }
-#line 1755 "parser.cpp" /* yacc.c:1646  */
+#line 1760 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 21:
-#line 389 "parser.yy" /* yacc.c:1646  */
+#line 394 "parser.yy" /* yacc.c:1646  */
     {
                                               struct Type type=(yyvsp[0].data_type);
                                               for (string identifier : current_identifiers_list){
@@ -1776,11 +1781,11 @@ yyreduce:
                                               }
                                               current_identifiers_list.clear();
                                           }
-#line 1780 "parser.cpp" /* yacc.c:1646  */
+#line 1785 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 22:
-#line 409 "parser.yy" /* yacc.c:1646  */
+#line 414 "parser.yy" /* yacc.c:1646  */
     {
                                                                 struct Type type=(yyvsp[0].data_type);
                                                                 for (string identifier : current_identifiers_list){
@@ -1802,46 +1807,125 @@ yyreduce:
                                                                 }
                                                                 current_identifiers_list.clear();
                                                               }
-#line 1806 "parser.cpp" /* yacc.c:1646  */
+#line 1811 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 23:
-#line 433 "parser.yy" /* yacc.c:1646  */
+#line 438 "parser.yy" /* yacc.c:1646  */
     { compound_statements_complexity--; }
-#line 1812 "parser.cpp" /* yacc.c:1646  */
+#line 1817 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 24:
-#line 436 "parser.yy" /* yacc.c:1646  */
+#line 441 "parser.yy" /* yacc.c:1646  */
     {
               if (!local_scope && compound_statements_complexity==0)
                 print_assembly(NEW_BLOCK,yylval);
               compound_statements_complexity++;
             }
-#line 1822 "parser.cpp" /* yacc.c:1646  */
+#line 1827 "parser.cpp" /* yacc.c:1646  */
+    break;
+
+  case 25:
+#line 447 "parser.yy" /* yacc.c:1646  */
+    {}
+#line 1833 "parser.cpp" /* yacc.c:1646  */
+    break;
+
+  case 26:
+#line 448 "parser.yy" /* yacc.c:1646  */
+    {}
+#line 1839 "parser.cpp" /* yacc.c:1646  */
+    break;
+
+  case 27:
+#line 450 "parser.yy" /* yacc.c:1646  */
+    {}
+#line 1845 "parser.cpp" /* yacc.c:1646  */
+    break;
+
+  case 28:
+#line 451 "parser.yy" /* yacc.c:1646  */
+    {}
+#line 1851 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 29:
-#line 450 "parser.yy" /* yacc.c:1646  */
+#line 455 "parser.yy" /* yacc.c:1646  */
     {
-												//int variable_index=find_variable($1);
-												//if (strcmp(variables[variable_index].type,"integer")==0)
-													//if (strcmp(variables[variable_index].type,yylval.type)==0)
-														//variables[variable_index].intval=$3;
-													//else
-													//	variables[variable_index].intval=(int)$3;
-												//else if (strcmp(variables[variable_index].type,"real")==0)
-												//	if (strcmp(variables[variable_index].type,yylval.type)==0)
-													//	variables[variable_index].realval=$3;
-													//else
-														//variables[variable_index].realval=(double)$3;
-												//print_assembly(yyin,ASSIGNOP,yylval.number.type);
-											}
-#line 1841 "parser.cpp" /* yacc.c:1646  */
+                                            struct Entry variable=*(yyvsp[-2].entry);
+                                            struct Entry expression=*(yyvsp[0].entry);
+                                            yylval.mov.assign_type=VARIABLE_ASSIGN;
+                                            if (expression.data_type!=variable.data_type){
+                                                current_register++;
+                                                if (expression.data_type==REAL_TYPE){
+                                                  yylval.real_to_int.entry_to_convert=new Entry(expression);
+                                                  string temporal_int_expression_name="$t"+to_string(current_register);
+                                                  int temporal_int_expression_index=insert_variable(temporal_int_expression_name,INT_TYPE,
+                                                    expression.is_array_data_type,expression.first_index,expression.last_index,TEMPORARY);
+                                                  expression=entries_list.at(temporal_int_expression_index);
+                                                  yylval.real_to_int.converted_entry=new Entry(expression);
+                                                  print_assembly(REAL_TO_INT,yylval);
+                                                } else if (expression.data_type==INT_TYPE){
+                                                  yylval.int_to_real.entry_to_convert=new Entry(expression);
+                                                  string temporal_real_expression_name="$t"+to_string(current_register);
+                                                  int temporal_real_expression_index=insert_variable(temporal_real_expression_name,REAL_TYPE,
+                                                    expression.is_array_data_type,expression.first_index,expression.last_index,TEMPORARY);
+                                                  expression=entries_list.at(temporal_real_expression_index);
+                                                  yylval.int_to_real.converted_entry=new Entry(expression);
+                                                  print_assembly(INT_TO_REAL,yylval);
+                                                } else {
+                                                  yyerror("Wrong data type of expression or variable");
+                                                }
+                                              }
+                                              yylval.mov.assigned_entry_indexes=new vector<int>();
+                                              yylval.mov.entry_to_assign_indexes=new vector<int>();
+                                              if (variable.is_array_data_type && variable.current_array_index==-1 &&
+                                                expression.is_array_data_type && expression.current_array_index==-1 &&
+                                                  variable.values.size()==expression.values.size()){
+                                                    for (int i=0;i<variable.values.size();i++){
+                                                      variable.values.at(i)=expression.values.at(i);
+                                                      yylval.mov.assigned_entry_indexes->push_back(i);
+                                                      yylval.mov.entry_to_assign_indexes->push_back(i);
+                                                    }
+                                              } else if (variable.is_array_data_type && variable.current_array_index!=-1 &&
+                                                expression.is_array_data_type && expression.current_array_index!=-1){
+                                                  int variable_current_array_index=variable.current_array_index;
+                                                  int expression_current_array_index=expression.current_array_index;
+                                                variable.values.at(variable_current_array_index)=expression.values.at(expression_current_array_index);
+                                                yylval.mov.assigned_entry_indexes->push_back(variable.current_array_index);
+                                                yylval.mov.entry_to_assign_indexes->push_back(expression.current_array_index);
+                                              } else if (variable.is_array_data_type && variable.current_array_index!=-1 &&
+                                                !(expression.is_array_data_type)){
+                                                  int variable_current_array_index=variable.current_array_index;
+                                                variable.values.at(variable_current_array_index)=expression.values.at(0);
+                                                yylval.mov.assigned_entry_indexes->push_back(variable.current_array_index);
+                                                yylval.mov.entry_to_assign_indexes->push_back(0);
+                                              } else if (variable.is_array_data_type && variable.current_array_index==-1 && expression.is_array_data_type
+                                                && expression.current_array_index!=-1){
+                                                  int expression_current_array_index=expression.current_array_index;
+                                                variable.values.at(0)=expression.values.at(expression_current_array_index);
+                                                yylval.mov.assigned_entry_indexes->push_back(0);
+                                                yylval.mov.entry_to_assign_indexes->push_back(expression_current_array_index);
+                                              } else if (variable.is_array_data_type && variable.current_array_index==-1 && !expression.is_array_data_type
+                                                || !(variable.is_array_data_type) && !(expression.is_array_data_type)){
+                                                variable.values.at(0)=expression.values.at(0);
+                                                yylval.mov.assigned_entry_indexes->push_back(0);
+                                                yylval.mov.entry_to_assign_indexes->push_back(0);
+                                              }
+                                              yylval.mov.entry_to_assign=new Entry(expression);
+                                              yylval.mov.assigned_entry=new Entry(variable);
+                                              if (expression.token_type==VALUE)
+                                                yylval.mov.assign_type=CONSTANT_ASSIGN;
+                                              else
+                                                yylval.mov.assign_type=VARIABLE_ASSIGN;
+                                            print_assembly(MOV,yylval);
+                                          }
+#line 1925 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 30:
-#line 465 "parser.yy" /* yacc.c:1646  */
+#line 524 "parser.yy" /* yacc.c:1646  */
     {
                                   struct Entry procedure=*(yyvsp[0].entry);
                                   if (procedure.arguments_count==0){
@@ -1855,11 +1939,11 @@ yyreduce:
                                     print_assembly(PROC_CALL_WITH_ARGUMENTS,yylval);
                                   }
                                 }
-#line 1859 "parser.cpp" /* yacc.c:1646  */
+#line 1943 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 39:
-#line 494 "parser.yy" /* yacc.c:1646  */
+#line 553 "parser.yy" /* yacc.c:1646  */
     {
                   string variable_name=*(yyvsp[0].name);
                   int variable_index=-1;
@@ -1871,16 +1955,17 @@ yyreduce:
                   if (variable_index==-1){
                     global_variable_index=find_global_variable(variable_name);
                     variable_index=global_variable_index;
+                    if (variable_index==-1)
+                      yyerror("Variable is not declared");
                   }
-                  if (global_variable_index==-1)
-                    yyerror("Variable is not declared");
+
                   (yyval.entry)=new Entry(entries_list.at(variable_index));
 				}
-#line 1880 "parser.cpp" /* yacc.c:1646  */
+#line 1965 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 40:
-#line 510 "parser.yy" /* yacc.c:1646  */
+#line 570 "parser.yy" /* yacc.c:1646  */
     {
                                     string variable_name=*(yyvsp[-3].name);
                                     struct Entry array_index=*(yyvsp[-1].entry);
@@ -1893,9 +1978,10 @@ yyreduce:
                                     if (variable_index==-1){
                                       global_variable_index=find_global_variable(variable_name);
                                       variable_index=global_variable_index;
+                                      if (variable_index==-1)
+                                        yyerror("Variable is not declared");
                                     }
-                                    if (global_variable_index==-1)
-                                      yyerror("Variable is not declared");
+
                                     (yyval.entry)=new Entry(entries_list.at(variable_index));
                                     switch(array_index.token_type){
                                       case LOCAL_VARIABLE:
@@ -1917,11 +2003,11 @@ yyreduce:
                                         break;
                                     }
 									               }
-#line 1921 "parser.cpp" /* yacc.c:1646  */
+#line 2007 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 41:
-#line 548 "parser.yy" /* yacc.c:1646  */
+#line 609 "parser.yy" /* yacc.c:1646  */
     {
                            string procedure_name=*(yyvsp[0].name);
 							             int procedure_index=find_procedure(procedure_name,vector<int>(),VOID);
@@ -1932,11 +2018,11 @@ yyreduce:
                            yylval.procedure=procedure;
 
 						            }
-#line 1936 "parser.cpp" /* yacc.c:1646  */
+#line 2022 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 42:
-#line 558 "parser.yy" /* yacc.c:1646  */
+#line 619 "parser.yy" /* yacc.c:1646  */
     {
                                                     string procedure_name=*(yyvsp[-3].name);
                                                     vector<Entry> expression_results=*(yyvsp[-1].entries);
@@ -1973,43 +2059,43 @@ yyreduce:
                                                     procedure.address=entries_list.at(procedure_index).addresses.at(0);
                                                     yylval.procedure=procedure;
 												                          }
-#line 1977 "parser.cpp" /* yacc.c:1646  */
+#line 2063 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 43:
-#line 597 "parser.yy" /* yacc.c:1646  */
+#line 658 "parser.yy" /* yacc.c:1646  */
     {
                                 struct Entry expression=*(yyvsp[0].entry);
                                 (yyval.entries)=new vector<Entry>();
                                 (yyval.entries)->push_back(expression);
                              }
-#line 1987 "parser.cpp" /* yacc.c:1646  */
+#line 2073 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 44:
-#line 602 "parser.yy" /* yacc.c:1646  */
+#line 663 "parser.yy" /* yacc.c:1646  */
     {
                                                     struct Entry expression=*(yyvsp[0].entry);
                                                     (yyvsp[-2].entries)->push_back(expression);
                                                     (yyval.entries)=(yyvsp[-2].entries);
                                                   }
-#line 1997 "parser.cpp" /* yacc.c:1646  */
+#line 2083 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 45:
-#line 609 "parser.yy" /* yacc.c:1646  */
+#line 670 "parser.yy" /* yacc.c:1646  */
     { (yyval.entry)=(yyvsp[0].entry); }
-#line 2003 "parser.cpp" /* yacc.c:1646  */
+#line 2089 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 46:
-#line 610 "parser.yy" /* yacc.c:1646  */
+#line 671 "parser.yy" /* yacc.c:1646  */
     {
                                                           struct Entry entry1=*(yyvsp[-2].entry);
                                                           struct Entry entry2=*(yyvsp[0].entry);
-                                                          convert_entries(&entry1,&entry2);
+                                                          entry2=convert_entries(&entry1,&entry2);
                                                           current_register++;
-                                                          string temporal_variable_name="$t"+current_register;
+                                                          string temporal_variable_name="$t"+to_string(current_register);
                                                           int temporal_variable_index=insert_variable(temporal_variable_name, entry1.data_type,false,0,0,TEMPORARY);
                                                           (yyval.entry)=new Entry(entries_list.at(temporal_variable_index));
                                                           yylval.mov.assigned_entry=(yyval.entry);
@@ -2091,21 +2177,21 @@ yyreduce:
                                                         relop_value.values.push_back(value);
                                                         (yyval.entry)->values.at(0)=value;
                                                         yylval.mov.entry_to_assign=new Entry(relop_value);
-                                                        printf("Temporal variable: %s",(yyval.entry)->name.c_str());
+                                                        printf("Temporal variable: %s\n",(yyval.entry)->name.c_str());
                                                         print_assembly(MOV,yylval);
                                                         current_register--;
                                                       }
-#line 2099 "parser.cpp" /* yacc.c:1646  */
+#line 2185 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 47:
-#line 703 "parser.yy" /* yacc.c:1646  */
+#line 764 "parser.yy" /* yacc.c:1646  */
     { (yyval.entry)=(yyvsp[0].entry); }
-#line 2105 "parser.cpp" /* yacc.c:1646  */
+#line 2191 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 48:
-#line 704 "parser.yy" /* yacc.c:1646  */
+#line 765 "parser.yy" /* yacc.c:1646  */
     {
                                 struct Entry entry=*(yyvsp[0].entry);
                                 if (entry.is_array_data_type && entry.current_array_index!=-1){
@@ -2125,13 +2211,13 @@ yyreduce:
                                       entry.values.at(i).real=-entry.values.at(i).real;
                                     }
                                     current_register++;
-                                    string temporal_variable_name="$t"+current_register;
+                                    string temporal_variable_name="$t"+to_string(current_register);
                                     int temporal_variable_index=insert_variable(temporal_variable_name,entry.data_type,
                                       entry.is_array_data_type,entry.first_index,entry.last_index,TEMPORARY);
                                     for (int i=0;i<entry.values.size();i++)
                                       entries_list.at(temporal_variable_index).values.at(i)=entry.values.at(i);
                                     entry=entries_list.at(temporal_variable_index);
-                                    printf("Temporal variable: %s",entry.name.c_str());
+                                    printf("Temporal variable: %s\n",entry.name.c_str());
                                     yylval.mov.entry_to_assign=(yyvsp[0].entry);
                                     yylval.mov.assigned_entry=new Entry(entry);
                                     yylval.mov.assign_type=((yyvsp[0].entry)->token_type==VALUE) ? CONSTANT_ASSIGN : VARIABLE_ASSIGN;
@@ -2140,19 +2226,19 @@ yyreduce:
                                 }
                                 (yyval.entry)=new Entry(entry);
                               }
-#line 2144 "parser.cpp" /* yacc.c:1646  */
+#line 2230 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 49:
-#line 738 "parser.yy" /* yacc.c:1646  */
+#line 799 "parser.yy" /* yacc.c:1646  */
     {
                                                   struct Entry entry1=*(yyvsp[-2].entry);
                                                   struct Entry entry2=*(yyvsp[0].entry);
-                                                  convert_entries(&entry1,&entry2);
+                                                  entry2=convert_entries(&entry1,&entry2);
                                                   current_register++;
-                                                  string temporal_variable_name="$t"+current_register;
+                                                  string temporal_variable_name="$t"+to_string(current_register);
                                                   int temporal_variable_index=insert_variable(temporal_variable_name,entry1.data_type,false,0,0,TEMPORARY);
-                                                  printf("Temporal variable: %s",entries_list.at(temporal_variable_index).name);
+                                                  printf("Temporal variable: %s\n",entries_list.at(temporal_variable_index).name);
                                                   (yyval.entry)=new Entry(entries_list.at(temporal_variable_index));
                                                   if ((yyvsp[-1].name)->compare("+")==0){
                                                     if (entry1.data_type==INT_TYPE){
@@ -2185,65 +2271,65 @@ yyreduce:
                                                   }
                                                   current_register--;
                                                 }
-#line 2189 "parser.cpp" /* yacc.c:1646  */
+#line 2275 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 50:
-#line 778 "parser.yy" /* yacc.c:1646  */
+#line 839 "parser.yy" /* yacc.c:1646  */
     {
                                                 struct Entry entry1=*(yyvsp[-2].entry);
                                                 struct Entry entry2=*(yyvsp[0].entry);
-                                                convert_entries(&entry1,&entry2);
+                                                entry2=convert_entries(&entry1,&entry2);
                                                 yylval.Or.entry1=new Entry(entry1);
                                                 yylval.Or.entry2=new Entry(entry2);
                                                 if (entry1.data_type==INT_TYPE){
                                                   current_register++;
-                                                  string temporal_variable_name="$t"+current_register;
+                                                  string temporal_variable_name="$t"+to_string(current_register);
                                                   int temporal_variable_index=insert_variable(temporal_variable_name,INT_TYPE,false,0,0,TEMPORARY);
                                                   (yyval.entry)=new Entry(entries_list.at(temporal_variable_index));
                                                   (yyval.entry)->values.at(0).integer=(entry1.values.at(0).integer==0 && entry2.values.at(0).integer==0) ? 0 : 1;
                                                   yylval.Or.result=(yyval.entry);
                                                   print_assembly(ORI,yylval);
-                                                  printf("Temporal variable: %s",(yyval.entry)->name.c_str());
+                                                  printf("Temporal variable: %s\n",(yyval.entry)->name.c_str());
                                                   current_register--;
                                                 } else if (entry2.data_type==REAL_TYPE){
                                                   current_register++;
-                                                  string temporal_variable_name="$t"+current_register;
+                                                  string temporal_variable_name="$t"+to_string(current_register);
                                                   int temporal_variable_index=insert_variable(temporal_variable_name,INT_TYPE,false,0,0,TEMPORARY);
                                                   (yyval.entry)=new Entry(entries_list.at(temporal_variable_index));
                                                   (yyval.entry)->values.at(0).real=(entry1.values.at(0).real==0.0 && entry2.values.at(0).real==0.0) ? 0.0 : 1.0;
                                                   yylval.Or.result=(yyval.entry);
                                                   print_assembly(ORR,yylval);
-                                                  printf("Temporal variable: %s",(yyval.entry)->name.c_str());
+                                                  printf("Temporal variable: %s\n",(yyval.entry)->name.c_str());
                                                   current_register--;
                                                 } else {
                                                   current_register--;
                                                   yyerror("Not identified type of variables");
                                                 }
                                               }
-#line 2225 "parser.cpp" /* yacc.c:1646  */
+#line 2311 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 52:
-#line 814 "parser.yy" /* yacc.c:1646  */
+#line 875 "parser.yy" /* yacc.c:1646  */
     { (yyval.entry)=(yyvsp[0].entry); }
-#line 2231 "parser.cpp" /* yacc.c:1646  */
+#line 2317 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 53:
-#line 815 "parser.yy" /* yacc.c:1646  */
+#line 876 "parser.yy" /* yacc.c:1646  */
     {
                               struct Entry entry1=*(yyvsp[-2].entry);
                               struct Entry entry2=*(yyvsp[0].entry);
-                              convert_entries(&entry1,&entry2);
-                              string mulop_variable_name="$t"+current_register;
+                              entry2=convert_entries(&entry1,&entry2);
+                              string mulop_variable_name="$t"+to_string(current_register);
                               yylval.mulop.entry1=new Entry(entry1);
                               yylval.mulop.entry2=new Entry(entry2);
                               if (entry1.data_type==INT_TYPE){
                                 current_register++;
                                 int mulop_expression_int_index=insert_variable(mulop_variable_name,INT_TYPE,false,0,0,TEMPORARY);
                                 (yyval.entry)=new Entry(entries_list.at(mulop_expression_int_index));
-                                printf("Temporal variable: %s",(yyval.entry)->name.c_str());
+                                printf("Temporal variable: %s\n",(yyval.entry)->name.c_str());
                                 if (((yyvsp[-1].name))->compare("*")==0){
                                     (yyval.entry)->values.at(0).integer=entry1.values.at(0).integer * entry2.values.at(0).integer;
                                     yylval.mulop.result=(yyval.entry);
@@ -2276,7 +2362,7 @@ yyreduce:
                                  } else if (entry1.data_type==REAL_TYPE){
                                    int mulop_real_expression_index=insert_variable(mulop_variable_name,REAL_TYPE,false,0,0,TEMPORARY);
                                    (yyval.entry)=new Entry(entries_list.at(mulop_real_expression_index));
-                                   printf("Temporal variable: %s",(yyval.entry)->name.c_str());
+                                   printf("Temporal variable: %s\n",(yyval.entry)->name.c_str());
                                    if (((yyvsp[-1].name))->compare("*")==0){
                                       (yyval.entry)->values.at(0).real=entry1.values.at(0).real * entry2.values.at(0).real;
                                       yylval.mulop.result=(yyval.entry);
@@ -2307,86 +2393,91 @@ yyreduce:
                                  }
                                  current_register--;
                            }
-#line 2311 "parser.cpp" /* yacc.c:1646  */
+#line 2397 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 54:
-#line 894 "parser.yy" /* yacc.c:1646  */
+#line 955 "parser.yy" /* yacc.c:1646  */
     { (yyval.entry)=(yyvsp[0].entry); }
-#line 2317 "parser.cpp" /* yacc.c:1646  */
+#line 2403 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 55:
-#line 895 "parser.yy" /* yacc.c:1646  */
+#line 956 "parser.yy" /* yacc.c:1646  */
     {
                                           vector<int> arguments_types;
                                           vector<bool> is_array_arguments;
                                           vector<int> array_sizes;
+                                          vector<Entry> potential_arguments;
                                           for(struct Entry potential_argument : *(yyvsp[-1].entries)){
                                             arguments_types.push_back(potential_argument.data_type);
                                             is_array_arguments.push_back(potential_argument.is_array_data_type);
                                             array_sizes.push_back(potential_argument.last_index-potential_argument.first_index);
+                                            potential_arguments.push_back(potential_argument);
                                           }
                                           int function_index=find_procedure(*(yyvsp[-3].name),arguments_types,is_array_arguments,array_sizes);
                                           if (function_index==-1)
                                             yyerror("The function is undefined (first declared).");
                                           (yyval.entry)=new Entry(entries_list.at(function_index));
-                                          yylval.entries=new vector<Entry>();
-                                          yylval.entries->insert(yylval.entries->end(),(yyvsp[-1].entries)->begin(),(yyvsp[-1].entries)->end());
-                                          yylval.entry=(yyval.entry);
+                                          yylval.function_call.entries=new vector<Entry>(potential_arguments);
+                                          yylval.function_call.entry=(yyval.entry);
                                           print_assembly(FUNCTION_CALL,yylval);
                                       }
-#line 2340 "parser.cpp" /* yacc.c:1646  */
+#line 2427 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 56:
-#line 914 "parser.yy" /* yacc.c:1646  */
+#line 976 "parser.yy" /* yacc.c:1646  */
     {
                     struct Entry constant;
                     struct Number constant_value=(yyvsp[0].number);
                     constant.token_type=VALUE;
                     constant.data_type=constant_value.type;
+                    constant.is_array_data_type=false;
+                    constant.first_index=0;
+                    constant.last_index=0;
+                    constant.current_array_index=-1;
                     if (constant.data_type==INT_TYPE || constant.data_type==REAL_TYPE)
                       constant.values.push_back(constant_value);
                     else
                       yyerror("Undefined data type");
                     (yyval.entry)=new Entry(constant);
                   }
-#line 2356 "parser.cpp" /* yacc.c:1646  */
+#line 2447 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 57:
-#line 925 "parser.yy" /* yacc.c:1646  */
+#line 991 "parser.yy" /* yacc.c:1646  */
     { (yyval.entry)=(yyvsp[-1].entry); }
-#line 2362 "parser.cpp" /* yacc.c:1646  */
+#line 2453 "parser.cpp" /* yacc.c:1646  */
     break;
 
   case 58:
-#line 926 "parser.yy" /* yacc.c:1646  */
+#line 992 "parser.yy" /* yacc.c:1646  */
     {
                         struct Entry factor_to_negate=*(yyvsp[0].entry);
-                        yylval.mov.changed_values_indexes=new vector<int>();
+                        yylval.mov.assigned_entry_indexes=new vector<int>();
                         current_register++;
                         if (factor_to_negate.data_type==INT_TYPE){
                           if (factor_to_negate.current_array_index!=-1 && factor_to_negate.is_array_data_type){
                             factor_to_negate.values.at(current_array_index).integer=
                               (factor_to_negate.values.at(current_array_index).integer==0) ? 1 : 0;
-                              yylval.mov.changed_values_indexes->push_back(factor_to_negate.current_array_index);
+                              yylval.mov.assigned_entry_indexes->push_back(factor_to_negate.current_array_index);
                             }else{
                             factor_to_negate.values.at(0).integer = (factor_to_negate.values.at(0).integer==0) ? 1 : 0;
-                            yylval.mov.changed_values_indexes->push_back(0);
+                            yylval.mov.assigned_entry_indexes->push_back(0);
                           }
                         } else if (factor_to_negate.data_type==REAL_TYPE){
                           if (factor_to_negate.current_array_index!=-1 && factor_to_negate.is_array_data_type){
                             factor_to_negate.values.at(current_array_index).real=
                               (factor_to_negate.values.at(current_array_index).real==0.0) ? 1.0 : 0.0;
-                              yylval.mov.changed_values_indexes->push_back(factor_to_negate.current_array_index);
+                              yylval.mov.assigned_entry_indexes->push_back(factor_to_negate.current_array_index);
                           } else
                             factor_to_negate.values.at(0).real = (factor_to_negate.values.at(0).real==0.0) ? 1.0 : 0.0;
-                            yylval.mov.changed_values_indexes->push_back(0);
+                            yylval.mov.assigned_entry_indexes->push_back(0);
                         } else
                             yyerror("Undefined data type");
-                        string temporal_variable_name="$t"+current_register;
+                        string temporal_variable_name="$t"+to_string(current_register);
                         int negated_factor_index=insert_variable(temporal_variable_name,factor_to_negate.data_type,
                             factor_to_negate.is_array_data_type,factor_to_negate.first_index,factor_to_negate.last_index,TEMPORARY);
                         for (int current_value_index=factor_to_negate.first_index; current_value_index<=factor_to_negate.last_index;current_value_index++){
@@ -2394,7 +2485,7 @@ yyreduce:
                           current_value_index++;
                         }
                         struct Entry negated_factor=entries_list.at(negated_factor_index);
-                        printf("Temporal variable: %s",temporal_variable_name.c_str());
+                        printf("Temporal variable: %s\n",temporal_variable_name.c_str());
                         switch (factor_to_negate.data_type){
                           case LOCAL_VARIABLE:
                           case GLOBAL_VARIABLE:
@@ -2411,11 +2502,11 @@ yyreduce:
                         (yyval.entry)=new Entry(negated_factor);
                         (yyval.entry)->current_array_index=factor_to_negate.current_array_index;
                       }
-#line 2415 "parser.cpp" /* yacc.c:1646  */
+#line 2506 "parser.cpp" /* yacc.c:1646  */
     break;
 
 
-#line 2419 "parser.cpp" /* yacc.c:1646  */
+#line 2510 "parser.cpp" /* yacc.c:1646  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -2643,7 +2734,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 975 "parser.yy" /* yacc.c:1906  */
+#line 1041 "parser.yy" /* yacc.c:1906  */
 
 
 
@@ -2661,21 +2752,25 @@ void print_assembly(int token, YYSTYPE token_value){
   if (token==NUM){
 
   }else if (token==MOV){
-    vector<int> changed_values_indexes=*(token_value.mov.changed_values_indexes);
+    vector<int> assigned_entry_indexes=*(token_value.mov.assigned_entry_indexes);
+    vector<int> entry_to_assign_indexes=*(token_value.mov.entry_to_assign_indexes);
       if (yylval.mov.assign_type==CONSTANT_ASSIGN){
-        for (int changed_value_index :  changed_values_indexes){
+        for (int i=0,j=0;i<assigned_entry_indexes.size(),j<entry_to_assign_indexes.size();i++,j++){
           if (yylval.mov.assigned_entry->data_type==INT_TYPE){
-            fprintf(yyout,"\t\tmov.i\t%d, #%d\n",yylval.mov.assigned_entry->addresses.at(changed_value_index),yylval.mov.assigned_entry->values.at(changed_value_index).integer);
+            fprintf(yyout,"\t\tmov.i\t%d, #%d\n",yylval.mov.assigned_entry->addresses.at(assigned_entry_indexes.at(i)),
+              yylval.mov.entry_to_assign->values.at(0).integer);
           } else if (yylval.mov.assigned_entry->data_type=REAL_TYPE){
-            fprintf(yyout,"\t\tmov.r\t%d, #%d\n",yylval.mov.assigned_entry->addresses.at(changed_value_index),yylval.mov.assigned_entry->values.at(changed_value_index).real);
+            fprintf(yyout,"\t\tmov.r\t%d, #%d\n",yylval.mov.assigned_entry->addresses.at(assigned_entry_indexes.at(i)),yylval.mov.entry_to_assign->values.at(0).real);
           }
         }
       }else if (yylval.mov.assign_type==VARIABLE_ASSIGN){
-         for (int changed_value_index :  changed_values_indexes){
+         for (int i=0,j=0;i<assigned_entry_indexes.size(),j<entry_to_assign_indexes.size();i++,j++){
            if (yylval.mov.assigned_entry->data_type==INT_TYPE){
-             fprintf(yyout,"\t\tmov.i\t%d, %d\n",yylval.mov.assigned_entry->addresses.at(changed_value_index),yylval.mov.assigned_entry->addresses.at(changed_value_index));
+             fprintf(yyout,"\t\tmov.i\t%d, %d\n",yylval.mov.assigned_entry->addresses.at(assigned_entry_indexes.at(i)),
+              yylval.mov.entry_to_assign->addresses.at(entry_to_assign_indexes.at(j)));
            } else if (yylval.mov.assigned_entry->data_type=REAL_TYPE){
-             fprintf(yyout,"\t\tmov.r\t%d, %d\n",yylval.mov.assigned_entry->addresses.at(changed_value_index),yylval.mov.assigned_entry->addresses.at(changed_value_index));
+             fprintf(yyout,"\t\tmov.r\t%d, %d\n",yylval.mov.assigned_entry->addresses.at(assigned_entry_indexes.at(i)),
+              yylval.mov.entry_to_assign->addresses.at(entry_to_assign_indexes.at(j)));
            }
          }
        }
@@ -2691,68 +2786,70 @@ void print_assembly(int token, YYSTYPE token_value){
       fprintf(yyout,"\t\trealtoint.i\t%d, %d\n",token_value.int_to_real.converted_entry->addresses.at(0),token_value.int_to_real.entry_to_convert->addresses.at(0));
   }else if(token==MULI){
       fprintf(yyout,"\t\tmul.i\t%d, ",token_value.mulop.result->addresses.at(0));
-      if(token_value.mulop.entry1->token_type==VALUE){
-        fprintf(yyout,"#%d, ",token_value.mulop.entry1->values.at(0).integer);
-      } else
-        fprintf(yyout,"%d, ",token_value.mulop.entry1->addresses.at(0));
-      if (token_value.mulop.entry2->token_type==VALUE) {
-        fprintf(yyout,"#%d\n",token_value.mulop.entry2->values.at(0).integer);
-      } else {
-        fprintf(yyout,"%d\n",token_value.mulop.entry2->addresses.at(0));
+      if (token_value.add.entry1->token_type==VALUE){
+        fprintf(yyout,"#%d, ",token_value.add.entry1->values.at(0).integer);
+      } else if (token_value.add.entry1->token_type!=VALUE){
+        fprintf(yyout,"%d, ", token_value.add.entry1->addresses.at(0));
+      } if (token_value.add.entry2->token_type==VALUE){
+        fprintf(yyout, "#%d\n", token_value.add.entry2->values.at(0).integer);
+      } else  if (token_value.add.entry2->token_type!=VALUE){
+        fprintf(yyout,"%d\n",token_value.add.entry2->addresses.at(0));
       }
   } else if (token==DIVI){
     fprintf(yyout,"\t\tdiv.i\t%d, ",token_value.mulop.result->addresses.at(0));
-    if(token_value.mulop.entry1->token_type==VALUE){
-      fprintf(yyout,"#%d, ",token_value.mulop.entry1->values.at(0).integer);
-    } else
-      fprintf(yyout,"%d, ",token_value.mulop.entry1->addresses.at(0));
-    if (token_value.mulop.entry2->token_type==VALUE) {
-      fprintf(yyout,"#%d\n",token_value.mulop.entry2->values.at(0).integer);
-    } else {
-      fprintf(yyout,"%d\n",token_value.mulop.entry2->addresses.at(0));
+    if (token_value.add.entry1->token_type==VALUE){
+      fprintf(yyout,"#%d, ",token_value.add.entry1->values.at(0).integer);
+    } else if (token_value.add.entry1->token_type!=VALUE){
+      fprintf(yyout,"%d, ", token_value.add.entry1->addresses.at(0));
+    } if (token_value.add.entry2->token_type==VALUE){
+      fprintf(yyout, "#%d\n", token_value.add.entry2->values.at(0).integer);
+    } else  if (token_value.add.entry2->token_type!=VALUE){
+      fprintf(yyout,"%d\n",token_value.add.entry2->addresses.at(0));
     }
   } else if (token==MOD){
     fprintf(yyout,"\t\tmod.i\t%d, ",token_value.mulop.result->addresses.at(0));
-    if(token_value.mulop.entry1->token_type==VALUE){
-      fprintf(yyout,"#%d, ",token_value.mulop.entry1->values.at(0).integer);
-    } else
-      fprintf(yyout,"%d, ",token_value.mulop.entry1->addresses.at(0));
-    if (token_value.mulop.entry2->token_type==VALUE) {
-      fprintf(yyout,"#%d\n",token_value.mulop.entry2->values.at(0).integer);
-    } else {
-      fprintf(yyout,"%d\n",token_value.mulop.entry2->addresses.at(0));
+    if (token_value.add.entry1->token_type==VALUE){
+      fprintf(yyout,"#%d, ",token_value.add.entry1->values.at(0).integer);
+    } else if (token_value.add.entry1->token_type!=VALUE){
+      fprintf(yyout,"%d, ", token_value.add.entry1->addresses.at(0));
+    } if (token_value.add.entry2->token_type==VALUE){
+      fprintf(yyout, "#%d\n", token_value.add.entry2->values.at(0).integer);
+    } else  if (token_value.add.entry2->token_type!=VALUE){
+      fprintf(yyout,"%d\n",token_value.add.entry2->addresses.at(0));
     }
   } else if (token==ANDI){
     fprintf(yyout,"\t\tand.i\t%d, ",token_value.mulop.result->addresses.at(0));
-    if(token_value.mulop.entry1->token_type==VALUE){
-      fprintf(yyout,"#%d, ",token_value.mulop.entry1->values.at(0).integer);
-    } else
-      fprintf(yyout,"%d, ",token_value.mulop.entry1->addresses.at(0));
-    if (token_value.mulop.entry2->token_type==VALUE) {
-      fprintf(yyout,"#%d\n",token_value.mulop.entry2->values.at(0).integer);
-    } else {
-      fprintf(yyout,"%d\n",token_value.mulop.entry2->addresses.at(0));
+    if (token_value.add.entry1->token_type==VALUE){
+      fprintf(yyout,"#%d, ",token_value.add.entry1->values.at(0).integer);
+    } else if (token_value.add.entry1->token_type!=VALUE){
+      fprintf(yyout,"%d, ", token_value.add.entry1->addresses.at(0));
+    } if (token_value.add.entry2->token_type==VALUE){
+      fprintf(yyout, "#%d\n", token_value.add.entry2->values.at(0).integer);
+    } else  if (token_value.add.entry2->token_type!=VALUE){
+      fprintf(yyout,"%d\n",token_value.add.entry2->addresses.at(0));
     }
-  } else if (token=MULR){
+  } else if (token==MULR){
     fprintf(yyout,"\t\tmul.r\t%d, ",token_value.mulop.result->addresses.at(0));
-    if (token_value.mulop.entry1->token_type==VALUE){
-      fprintf(yyout,"#%f, ",token_value.mulop.entry1->values.at(0).real);
-    }else
-      fprintf(yyout,"%d, ",token_value.mulop.entry1->addresses.at(0));
-    if (token_value.mulop.entry2->token_type==VALUE)
-      fprintf(yyout,"#%f\n",token_value.mulop.entry2->values.at(0).real);
-    else
-      fprintf(yyout,"%d\n",token_value.mulop.entry2->addresses.at(0));
+    if (token_value.add.entry1->token_type==VALUE){
+      fprintf(yyout,"#%f, ",token_value.add.entry1->values.at(0).real);
+    } else if (token_value.add.entry1->token_type!=VALUE){
+      fprintf(yyout,"%d, ", token_value.add.entry1->addresses.at(0));
+    }if (token_value.add.entry2->token_type==VALUE){
+      fprintf(yyout, "#%f\n", token_value.add.entry2->values.at(0).integer);
+    } else  if (token_value.add.entry2->token_type!=VALUE){
+      fprintf(yyout,"%d\n",token_value.add.entry2->addresses.at(0));
+    }
   } else if(token==DIVR){
     fprintf(yyout,"\t\tdiv.r\t%d, ",token_value.mulop.result->addresses.at(0));
-    if (token_value.mulop.entry1->token_type==VALUE){
-      fprintf(yyout,"#%f, ",token_value.mulop.entry1->values.at(0).real);
-    }else
-      fprintf(yyout,"%d, ",token_value.mulop.entry1->addresses.at(0));
-    if (token_value.mulop.entry2->token_type==VALUE){
-      fprintf(yyout,"#%f\n",token_value.mulop.entry2->values.at(0).real);
-    } else
-      fprintf(yyout,"%d\n",token_value.mulop.entry2->addresses.at(0));
+    if (token_value.add.entry1->token_type==VALUE){
+      fprintf(yyout,"#%f, ",token_value.add.entry1->values.at(0).real);
+    } else if (token_value.add.entry1->token_type!=VALUE){
+      fprintf(yyout,"%d, ", token_value.add.entry1->addresses.at(0));
+    }if (token_value.add.entry2->token_type==VALUE){
+      fprintf(yyout, "#%f\n", token_value.add.entry2->values.at(0).integer);
+    } else  if (token_value.add.entry2->token_type!=VALUE){
+      fprintf(yyout,"%d\n",token_value.add.entry2->addresses.at(0));
+    }
   } else if(token==ANDR){
     fprintf(yyout,"\t\tand.r\t%d, ",token_value.mulop.result->addresses.at(0));
     if (token_value.mulop.entry1->token_type==VALUE){
@@ -2765,70 +2862,70 @@ void print_assembly(int token, YYSTYPE token_value){
       fprintf(yyout,"%d\n",token_value.mulop.entry2->addresses.at(0));
   } else if (token==ORI){
     fprintf(yyout,"\t\tor.i\t%d, ",token_value.Or.result->addresses.at(0));
-      if (token_value.Or.entry1->token_type==VALUE){
-        fprintf(yyout,"#%d, ",token_value.Or.entry1->values.at(0).integer);
-      } else
-        fprintf(yyout,"%d, ", token_value.Or.entry1->addresses.at(0));
-      if (token_value.Or.entry2->token_type==VALUE){
-        fprintf(yyout, "#%d\n", token_value.Or.entry2->values.at(0).integer);
-      } else {
-        fprintf(yyout,"%d\n",token_value.Or.entry2->addresses.at(0));
-      }
+    if (token_value.add.entry1->token_type==VALUE){
+      fprintf(yyout,"#%d, ",token_value.add.entry1->values.at(0).integer);
+    } else if (token_value.add.entry1->token_type!=VALUE){
+      fprintf(yyout,"%d, ", token_value.add.entry1->addresses.at(0));
+    } if (token_value.add.entry2->token_type==VALUE){
+      fprintf(yyout, "#%d\n", token_value.add.entry2->values.at(0).integer);
+    } else  if (token_value.add.entry2->token_type!=VALUE){
+      fprintf(yyout,"%d\n",token_value.add.entry2->addresses.at(0));
+    }
   } else if (token==ORR){
     fprintf(yyout,"\t\tor.r\t%d, ",token_value.Or.result->addresses.at(0));
-      if (token_value.Or.entry1->token_type==VALUE){
-        fprintf(yyout,"#%f, ",token_value.Or.entry1->values.at(0).real);
-      } else
-        fprintf(yyout,"%d, ", token_value.Or.entry1->addresses.at(0));
-      if (token_value.Or.entry2->token_type==VALUE){
-        fprintf(yyout, "#%f\n", token_value.Or.entry2->values.at(0).real);
-      } else {
-        fprintf(yyout,"%d\n",token_value.Or.entry2->addresses.at(0));
-      }
+    if (token_value.add.entry1->token_type==VALUE){
+      fprintf(yyout,"#%f, ",token_value.add.entry1->values.at(0).real);
+    } else if (token_value.add.entry1->token_type!=VALUE){
+      fprintf(yyout,"%d, ", token_value.add.entry1->addresses.at(0));
+    }if (token_value.add.entry2->token_type==VALUE){
+      fprintf(yyout, "#%f\n", token_value.add.entry2->values.at(0).integer);
+    } else  if (token_value.add.entry2->token_type!=VALUE){
+      fprintf(yyout,"%d\n",token_value.add.entry2->addresses.at(0));
+    }
   } else if (token==ADDI){
     fprintf(yyout,"\t\tadd.i\t%d, ",token_value.add.result->addresses.at(0));
       if (token_value.add.entry1->token_type==VALUE){
         fprintf(yyout,"#%d, ",token_value.add.entry1->values.at(0).integer);
-      } else
+      } else if (token_value.add.entry1->token_type!=VALUE){
         fprintf(yyout,"%d, ", token_value.add.entry1->addresses.at(0));
-      if (token_value.add.entry2->token_type==VALUE){
+      } if (token_value.add.entry2->token_type==VALUE){
         fprintf(yyout, "#%d\n", token_value.add.entry2->values.at(0).integer);
-      } else {
+      } else  if (token_value.add.entry2->token_type!=VALUE){
         fprintf(yyout,"%d\n",token_value.add.entry2->addresses.at(0));
       }
   } else if (token==ADDR){
     fprintf(yyout,"\t\tadd.r\t%d, ",token_value.add.result->addresses.at(0));
       if (token_value.add.entry1->token_type==VALUE){
         fprintf(yyout,"#%f, ",token_value.add.entry1->values.at(0).real);
-      } else
+      } else if (token_value.add.entry1->token_type!=VALUE){
         fprintf(yyout,"%d, ", token_value.add.entry1->addresses.at(0));
-      if (token_value.add.entry2->token_type==VALUE){
+      }if (token_value.add.entry2->token_type==VALUE){
         fprintf(yyout, "#%f\n", token_value.add.entry2->values.at(0).integer);
-      } else {
+      } else  if (token_value.add.entry2->token_type!=VALUE){
         fprintf(yyout,"%d\n",token_value.add.entry2->addresses.at(0));
       }
   } else if (token==SUBI){
     fprintf(yyout,"\t\tsub.i\t%d, ",token_value.sub.result->addresses.at(0));
-      if (token_value.sub.entry1->token_type==VALUE){
-        fprintf(yyout,"#%d, ",token_value.sub.entry1->values.at(0).integer);
-      } else
-        fprintf(yyout,"%d, ", token_value.sub.entry1->addresses.at(0));
-      if (token_value.sub.entry2->token_type==VALUE){
-        fprintf(yyout, "#%d\n", token_value.sub.entry2->values.at(0).integer);
-      } else {
-        fprintf(yyout,"%d\n",token_value.sub.entry2->addresses.at(0));
-      }
+    if (token_value.add.entry1->token_type==VALUE){
+      fprintf(yyout,"#%d, ",token_value.add.entry1->values.at(0).integer);
+    } else if (token_value.add.entry1->token_type!=VALUE){
+      fprintf(yyout,"%d, ", token_value.add.entry1->addresses.at(0));
+    } if (token_value.add.entry2->token_type==VALUE){
+      fprintf(yyout, "#%d\n", token_value.add.entry2->values.at(0).integer);
+    } else  if (token_value.add.entry2->token_type!=VALUE){
+      fprintf(yyout,"%d\n",token_value.add.entry2->addresses.at(0));
+    }
   } else if (token==SUBR){
     fprintf(yyout,"\t\tsub.r\t%d, ",token_value.sub.result->addresses.at(0));
-      if (token_value.sub.entry1->token_type==VALUE){
-        fprintf(yyout,"#%f, ",token_value.sub.entry1->values.at(0).real);
-      } else
-        fprintf(yyout,"%d, ", token_value.sub.entry1->addresses.at(0));
-      if (token_value.sub.entry2->token_type==VALUE){
-        fprintf(yyout, "#%f\n", token_value.sub.entry2->values.at(0).real);
-      } else {
-        fprintf(yyout,"%d\n",token_value.sub.entry2->addresses.at(0));
-      }
+    if (token_value.add.entry1->token_type==VALUE){
+      fprintf(yyout,"#%f, ",token_value.add.entry1->values.at(0).real);
+    } else if (token_value.add.entry1->token_type!=VALUE){
+      fprintf(yyout,"%d, ", token_value.add.entry1->addresses.at(0));
+    }if (token_value.add.entry2->token_type==VALUE){
+      fprintf(yyout, "#%f\n", token_value.add.entry2->values.at(0).integer);
+    } else  if (token_value.add.entry2->token_type!=VALUE){
+      fprintf(yyout,"%d\n",token_value.add.entry2->addresses.at(0));
+    }
   }else if(token==INT_FUN) {
       string function_name=*(token_value.procedure.name);
       fprintf(yyout,"%s:\n",function_name.c_str());
@@ -2876,7 +2973,7 @@ void print_assembly(int token, YYSTYPE token_value){
           fprintf(yyout,"\t\tpush.r\t#%d\n",entry.addresses.at(0));
       }
     }
-    struct Entry function=*(yylval.entry);
+    struct Entry function=*(yylval.function_call.entry);
     switch (function.data_type){
       case INT_TYPE:
         fprintf(yyout,"\t\tcall.i\t%s\n",function.name);
@@ -2957,7 +3054,7 @@ void init(){
     insert(p->name,p->token,KEYWORD);
 }
 
-void convert_entries(struct Entry * entry1, struct Entry * entry2){
+struct Entry convert_entries(struct Entry * entry1, struct Entry * entry2){
   if (entry1->is_array_data_type && entry1->current_array_index!=-1){
     struct Number value=entry1->values.at(entry1->current_array_index);
     entry1->is_array_data_type=false;
@@ -2980,23 +3077,24 @@ void convert_entries(struct Entry * entry1, struct Entry * entry2){
     current_register++;
     if (entry1->data_type==INT_TYPE){
       yylval.real_to_int.entry_to_convert=entry2;
-      string real_to_int_variable_name="$t"+current_register;
+      string real_to_int_variable_name="$t"+to_string(current_register);
       int real_to_int_variable_index=insert_variable(real_to_int_variable_name,INT_TYPE,false,0,0,TEMPORARY);
       entries_list.at(real_to_int_variable_index).values.at(0).integer=(int)(entry2->values.at(0).real);
-      printf("Temporal variable: %s",entries_list.at(real_to_int_variable_index).name.c_str());
+      printf("Temporal variable: %s\n",entries_list.at(real_to_int_variable_index).name.c_str());
       entry2=&(entries_list.at(real_to_int_variable_index));
       yylval.real_to_int.converted_entry=entry2;
       print_assembly(REAL_TO_INT,yylval);
     } else if (entry1->data_type==REAL_TYPE){
       yylval.int_to_real.entry_to_convert=entry2;
-      string int_to_real_variable_name="$t"+current_register;
+      string int_to_real_variable_name="$t"+to_string(current_register);
       int int_to_real_variable_index=insert_variable(int_to_real_variable_name,REAL_TYPE,false,0,0,TEMPORARY);
       entries_list.at(int_to_real_variable_index).values.at(0).real=(double)(entry2->values.at(0).integer);
-      printf("Temporal variable: %s",entries_list.at(int_to_real_variable_index).name.c_str());
+      printf("Temporal variable: %s\n",entries_list.at(int_to_real_variable_index).name.c_str());
       entry2=&(entries_list.at(int_to_real_variable_index));
       yylval.int_to_real.converted_entry=entry2;
       print_assembly(INT_TO_REAL,yylval);
     }
     current_register--;
+    return *entry2;
   }
 }

@@ -37,12 +37,21 @@ int p;
                           return entries_list.at(p).token;
                         }
 
-
 <<EOF>> {
           return DONE;
         }
 
-.       {
+":="    {
+          yylval.name=new string(yytext);
+          return ASSIGNOP;
+        }
+
+">="|"<="|"<"|">"|"="|"<>"         {
+                                      yylval.name=new string(yytext);
+                                      return RELOP;
+                                    }
+
+.      {
           if (yyleng>BSIZE)
             yyerror ("compiler error");
           p=lookup(yytext,KEYWORD);
