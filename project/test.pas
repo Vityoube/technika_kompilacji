@@ -23,9 +23,10 @@ begin
 p;
 someVar:=0.2;
 otherVar:=2+3.1;
-thirdVar:=3>someVar;
 fifthVar[5]:=fifthVar[2];
 someVar:=f(someVar,otherVar,thirdVar);
 sixthVar:=fifthVar;
+if someVar>otherVar then someVar:=3
+else if someVar=otherVar and secondVar=0 then someVar:=10 else someVar:=100; 
 p(10.2,5.4,2)
 end.
