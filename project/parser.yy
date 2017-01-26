@@ -83,6 +83,13 @@
   struct Entry convert_entry(struct Entry entry);
   struct Entry  convert_entries(struct Entry entry1, struct Entry entry2);
 }
+%code provides{
+  void print_assembly(int token, YYSTYPE token_value);
+  extern int yylex();
+  FILE* open_pascal_file(char * filename);
+  void close_pascal_file();
+
+ }
 %union {
 	  int token;
 	  int token_type;
@@ -147,14 +154,14 @@
        struct Entry * entry1;
        struct Entry * entry2;
      } je;
+     struct Write{
+       struct Entry * entry_to_write;
+     } write;
+     struct Read {
+       struct Entry * entry_to_read;
+     } read;
  }
- %code provides{
-  void print_assembly(int token, YYSTYPE token_value);
-  extern int yylex();
-  FILE* open_pascal_file(char * filename);
-  void close_pascal_file();
 
- }
 
 %token NONE;
 %token DONE 0;
@@ -211,6 +218,8 @@
 %token <name> JUMPI
 %token <name> JEI
 %token <name> JER
+%token <name> WRITE
+%token <name> READ
 %type <entry> procedure_statement
 %type <data_type> type
 %type <standard_type> standard_type
@@ -240,13 +249,21 @@
   bool local_scope=false;
   int compound_statements_complexity=0;
   int current_block=-1;
+  vector<int> current_while_blocks;
+  int next_jump_block=0;
+  int next_jl_block=0;
+  int next_else_block=0;
   int current_array_index=-1;
   int current_register=-1;
   vector<Entry> current_expressions;
   vector<Entry> current_argument_entries;
   bool in_condition=false;
   bool in_then=false;
+  bool in_do=false;
   int compound_ifs=0;
+  int compound_whiles=0;
+  bool is_in_read=false;
+  bool is_in_write=false;
 %}
 %%
 
@@ -554,52 +571,59 @@ statement: variable ASSIGNOP expression		{
                                                 yylval.mov.assign_type=VARIABLE_ASSIGN;
                                             print_assembly(MOV,yylval);
                                             if (in_then){
-                                              current_block++;
+                                              next_jump_block=current_block+2;
                                               print_assembly(JUMPI,yylval);
-                                              current_block--;
                                             }
                                           }
           | procedure_statement {
-                                  struct Entry procedure=*$1;
-                                  if (procedure.arguments_count==0){
-                                      string procedure_name=procedure.name;
-                                      struct Procedure called_procedure;
-                                      called_procedure.name=new string(procedure_name);
-                                      yylval.procedure=called_procedure;
-                                      print_assembly(PROC_CALL,yylval);
-                                  } else {
-                                    yylval.entries=new vector<Entry>(current_argument_entries);
-                                    print_assembly(PROC_CALL_WITH_ARGUMENTS,yylval);
-                                  }
-                                  if (in_then){
-                                    current_block++;
-                                    print_assembly(JUMPI,yylval);
-                                    current_block--;
+                                  if (is_in_read || is_in_write){
+                                    is_in_read=false;
+                                    is_in_write=false;
+                                  } else{
+                                    struct Entry procedure=*$1;
+                                    if (procedure.arguments_count==0){
+                                        string procedure_name=procedure.name;
+                                        struct Procedure called_procedure;
+                                        called_procedure.name=new string(procedure_name);
+                                        yylval.procedure=called_procedure;
+                                        print_assembly(PROC_CALL,yylval);
+                                    } else {
+                                      yylval.entries=new vector<Entry>(current_argument_entries);
+                                      print_assembly(PROC_CALL_WITH_ARGUMENTS,yylval);
+                                    }
+                                    if (in_then){
+                                      next_jump_block=current_block+2;
+                                      print_assembly(JUMPI,yylval);
+                                    }
                                   }
                                 }
           | compound_statement  {
                                     if (in_then){
-                                      current_block++;
+                                      next_jump_block=current_block+2;
                                       print_assembly(JUMPI,yylval);
-                                      current_block--;
                                     }
                                 }
           | If expression Then statement Else statement {
                                                             compound_ifs--;
                                                             if (in_then){
-                                                              current_block++;
                                                               print_assembly(JUMPI,yylval);
-                                                              current_block--;
-                                                            } else if (compound_ifs==1){
+                                                            } else if (compound_ifs==0){
                                                               current_block++;
                                                               print_assembly(NEW_BLOCK,yylval);
                                                             }
                                                         }
           | While expression Do statement               {
+                                                          compound_whiles--;
                                                           if (in_then){
-                                                            current_block++;
+                                                            next_jump_block=current_block+2;
                                                             print_assembly(JUMPI,yylval);
-                                                            current_block--;
+                                                          } else if (in_do){
+                                                            next_jump_block=current_while_blocks.back();
+                                                            current_while_blocks.pop_back();
+                                                            print_assembly(JUMPI,yylval);
+                                                          } if (compound_whiles==0){
+                                                            current_block++;
+                                                            print_assembly(NEW_BLOCK,yylval);
                                                           }
                                                         }
 
@@ -616,12 +640,22 @@ Then: THEN  {
 ;
 Else: ELSE  {
               in_then=false;
+              current_block++;
               print_assembly(NEW_BLOCK,yylval);
             }
 ;
-While: WHILE  {in_condition=true; }
+While: WHILE  {
+                in_condition=true;
+                compound_whiles++;
+                current_block++;
+                current_while_blocks.push_back(current_block);
+                print_assembly(NEW_BLOCK,yylval);
+              }
 ;
-Do: DO { in_condition=false; }
+Do: DO {
+          in_condition=false;
+          in_do=true;
+        }
 ;
 
 variable: ID	{
@@ -691,39 +725,53 @@ procedure_statement: ID	{
 						            }
                      | ID '(' expression_list ')' {
                                                     string procedure_name=*$1;
-                                                    vector<Entry> expression_results=*$3;
-                                                    vector<int> arguments_types;
-                                                    vector<bool> is_array;
-                                                    vector<int> sizes;
-                                                    for (Entry expression_result : expression_results){
-                                                      switch(expression_result.token_type){
-                                                        case VALUE:
-                                                          arguments_types.push_back(expression_result.data_type);
-                                                          is_array.push_back(false);
-                                                          sizes.push_back(0);
-                                                          break;
-                                                        case LOCAL_VARIABLE:
-                                                        case GLOBAL_VARIABLE:
-                                                        case ARGUMENT:
-                                                        case TEMPORARY_VARIABLE:
-                                                        case PROCEDURE:
-                                                            arguments_types.push_back(expression_result.data_type);
-                                                            is_array.push_back(expression_result.is_array_data_type);
-                                                            sizes.push_back(expression_result.last_index-expression_result.first_index);
-                                                            break;
+                                                    if (procedure_name=="write"){
+                                                      for (struct Entry variable_to_write: *$3){
+                                                        yylval.write.entry_to_write=new Entry(variable_to_write);
+                                                        print_assembly(WRITE,yylval);
+                                                        is_in_write=true;
                                                       }
+                                                    } else if (procedure_name=="read"){
+                                                      for (struct Entry variable_to_read : *$3){
+                                                        yylval.read.entry_to_read=new Entry(variable_to_read);
+                                                        print_assembly(READ,yylval);
+                                                        is_in_read=true;
+                                                      }
+                                                    } else{
+                                                      vector<Entry> expression_results=*$3;
+                                                      vector<int> arguments_types;
+                                                      vector<bool> is_array;
+                                                      vector<int> sizes;
+                                                      for (Entry expression_result : expression_results){
+                                                        switch(expression_result.token_type){
+                                                          case VALUE:
+                                                            arguments_types.push_back(expression_result.data_type);
+                                                            is_array.push_back(false);
+                                                            sizes.push_back(0);
+                                                            break;
+                                                          case LOCAL_VARIABLE:
+                                                          case GLOBAL_VARIABLE:
+                                                          case ARGUMENT:
+                                                          case TEMPORARY_VARIABLE:
+                                                          case PROCEDURE:
+                                                              arguments_types.push_back(expression_result.data_type);
+                                                              is_array.push_back(expression_result.is_array_data_type);
+                                                              sizes.push_back(expression_result.last_index-expression_result.first_index);
+                                                              break;
+                                                        }
+                                                      }
+                                                      int procedure_index=find_procedure(procedure_name,arguments_types,is_array,sizes);
+                                                      if (procedure_index==-1)
+                                                        yyerror("Cannot find function with that name and arguments");
+                                                      current_argument_entries.insert(current_argument_entries.end(),expression_results.begin(),expression_results.end());
+                                                      for (int i=0; i<current_argument_entries.size();i++)
+                                                        current_argument_entries.at(i).local_variable_function_index=procedure_index;
+                                                      $$=new Entry(entries_list.at(procedure_index));
+                                                      struct Procedure procedure;
+                                                      procedure.name=new string(procedure_name);
+                                                      procedure.address=entries_list.at(procedure_index).addresses.at(0);
+                                                      yylval.procedure=procedure;
                                                     }
-                                                    int procedure_index=find_procedure(procedure_name,arguments_types,is_array,sizes);
-                                                    if (procedure_index==-1)
-                                                      yyerror("Cannot find function with that name and arguments");
-                                                    current_argument_entries.insert(current_argument_entries.end(),expression_results.begin(),expression_results.end());
-                                                    for (int i=0; i<current_argument_entries.size();i++)
-                                                      current_argument_entries.at(i).local_variable_function_index=procedure_index;
-                                                    $$=new Entry(entries_list.at(procedure_index));
-                                                    struct Procedure procedure;
-                                                    procedure.name=new string(procedure_name);
-                                                    procedure.address=entries_list.at(procedure_index).addresses.at(0);
-                                                    yylval.procedure=procedure;
 												                          }
 
 ;
@@ -742,7 +790,7 @@ expression_list: expression {
 
 expression: simple_expression {
                                 $$=$1;
-                                if (in_condition){
+                                if (in_condition && $1->token_type!=VALUE){
                                   struct Entry entry1=*$1;
                                   struct Entry entry2;
                                   current_register++;
@@ -762,7 +810,7 @@ expression: simple_expression {
                                   if ($$->data_type==INT_TYPE){
                                     yylval.jl.entry1=new Entry(entry1);
                                     yylval.jl.entry2=new Entry(entry2);
-                                    current_block++;
+                                    next_jl_block=current_block+1;
                                     print_assembly(JLI,yylval);
                                     value.type=INT_TYPE;
                                     value.integer=0;
@@ -770,9 +818,9 @@ expression: simple_expression {
                                     yylval.mov.entry_to_assign=new Entry(relop_value);
                                     yylval.mov.assign_type=CONSTANT_ASSIGN;
                                     print_assembly(MOV,yylval);
-                                    current_block++;
+                                    next_jump_block=current_block+2;
                                     print_assembly(JUMPI,yylval);
-                                    current_block--;
+                                    current_block++;
                                     print_assembly(NEW_BLOCK,yylval);
                                     relop_value.values.at(0).integer=1;
                                     yylval.mov.entry_to_assign=new Entry(relop_value);
@@ -783,7 +831,7 @@ expression: simple_expression {
                                   } else if ($$->data_type==REAL_TYPE){
                                     yylval.jl.entry1=new Entry(entry1);
                                     yylval.jl.entry2=new Entry(entry2);
-                                    current_block++;
+                                    next_jl_block=current_block+1;
                                     print_assembly(JLR,yylval);
                                     value.type=REAL_TYPE;
                                     value.real=0.0;
@@ -791,9 +839,9 @@ expression: simple_expression {
                                     yylval.mov.entry_to_assign=new Entry(relop_value);
                                     yylval.mov.assign_type=CONSTANT_ASSIGN;
                                     print_assembly(MOV,yylval);
-                                    current_block++;
+                                    next_jump_block=current_block+2;
                                     print_assembly(JUMPI,yylval);
-                                    current_block--;
+                                    current_block++;
                                     print_assembly(NEW_BLOCK,yylval);
                                     relop_value.values.at(0).real=1.0;
                                     yylval.mov.entry_to_assign=new Entry(relop_value);
@@ -804,12 +852,11 @@ expression: simple_expression {
                                   }
                                   yylval.je.entry2=new Entry(relop_value);
                                   yylval.je.entry1=$$;
-                                  current_block++;
+                                  next_else_block=current_block+1;
                                   if (entry1.data_type==INT_TYPE)
                                     print_assembly(JEI,yylval);
                                   else if (entry1.data_type==REAL_TYPE)
                                     print_assembly(JER,yylval);
-                                  current_register--;
                                 }
                               }
             | simple_expression RELOP simple_expression {
@@ -835,7 +882,7 @@ expression: simple_expression {
                                                           if ($$->data_type==INT_TYPE){
                                                             yylval.jl.entry1=new Entry(entry1);
                                                             yylval.jl.entry2=new Entry(entry2);
-                                                            current_block++;
+                                                            next_jl_block=current_block+1;
                                                             print_assembly(JLI,yylval);
                                                             value.type=INT_TYPE;
                                                             value.integer=0;
@@ -843,9 +890,9 @@ expression: simple_expression {
                                                             yylval.mov.entry_to_assign=new Entry(relop_value);
                                                             yylval.mov.assign_type=CONSTANT_ASSIGN;
                                                             print_assembly(MOV,yylval);
-                                                            current_block++;
+                                                            next_jump_block=current_block+2;
                                                             print_assembly(JUMPI,yylval);
-                                                            current_block--;
+                                                            current_block++;
                                                             print_assembly(NEW_BLOCK,yylval);
                                                             relop_value.values.at(0).integer=1;
                                                             yylval.mov.entry_to_assign=new Entry(relop_value);
@@ -856,7 +903,7 @@ expression: simple_expression {
                                                           } else if ($$->data_type==REAL_TYPE){
                                                             yylval.jl.entry1=new Entry(entry1);
                                                             yylval.jl.entry2=new Entry(entry2);
-                                                            current_block++;
+                                                            next_jl_block=current_block+1;
                                                             print_assembly(JLR,yylval);
                                                             value.type=REAL_TYPE;
                                                             value.integer=0;
@@ -864,9 +911,9 @@ expression: simple_expression {
                                                             yylval.mov.entry_to_assign=new Entry(relop_value);
                                                             yylval.mov.assign_type=CONSTANT_ASSIGN;
                                                             print_assembly(MOV,yylval);
-                                                            current_block++;
+                                                            next_jump_block+2;
                                                             print_assembly(JUMPI,yylval);
-                                                            current_block--;
+                                                            current_block++;
                                                             print_assembly(NEW_BLOCK,yylval);
                                                             relop_value.values.at(0).integer=1;
                                                             yylval.mov.entry_to_assign=new Entry(relop_value);
@@ -875,10 +922,10 @@ expression: simple_expression {
                                                             print_assembly(NEW_BLOCK,yylval);
                                                             relop_value.values.at(0).real=0.0;
                                                         }
-                                                        if (in_condition){
+                                                        if (in_condition && entry1.token_type!=VALUE && entry2.token_type!=VALUE){
                                                           yylval.je.entry2=new Entry(relop_value);
                                                           yylval.je.entry1=$$;
-                                                          current_block++;
+                                                          next_else_block=current_block+1;
                                                           if (entry1.data_type==INT_TYPE)
                                                             print_assembly(JEI,yylval);
                                                           else if (entry1.data_type==REAL_TYPE)
@@ -1084,6 +1131,7 @@ term: factor  { $$=$1; }
 
 factor: variable  { $$=$1; }
         |  ID '(' expression_list ')' {
+                                          string function_name=*$1;
                                           vector<int> arguments_types;
                                           vector<bool> is_array_arguments;
                                           vector<int> array_sizes;
@@ -1094,7 +1142,7 @@ factor: variable  { $$=$1; }
                                             array_sizes.push_back(potential_argument.last_index-potential_argument.first_index);
                                             potential_arguments.push_back(potential_argument);
                                           }
-                                          int function_index=find_procedure(*$1,arguments_types,is_array_arguments,array_sizes);
+                                          int function_index=find_procedure(function_name,arguments_types,is_array_arguments,array_sizes);
                                           if (function_index==-1)
                                             yyerror("The function is undefined (first declared).");
                                           $$=new Entry(entries_list.at(function_index));
@@ -1118,7 +1166,15 @@ factor: variable  { $$=$1; }
                       yyerror("Undefined data type");
                     $$=new Entry(constant);
                   }
-        | '(' expression ')' { $$=$2; }
+        | '(' expression ')' {
+                                current_register++;
+                                string temporal_variable_name="$t"+current_register;
+                                int temporal_variable_index=insert_variable(temporal_variable_name, ($2->token_type==VALUE) ? $2->values.at(0).type : $2->data_type,
+                                  $2->is_array_data_type,$2->first_index,$2->last_index,TEMPORARY);
+                                printf("Temporal variable: %s\n",temporal_variable_name.c_str());
+                                $$=new Entry(entries_list.at(temporal_variable_index));
+                                current_register--;
+                              }
         | NOT factor  {
                         struct Entry factor_to_negate=*$2;
                         yylval.mov.assigned_entry_indexes=new vector<int>();
@@ -1181,9 +1237,45 @@ int main(int argc, char* argv[]){
 }
 
 void print_assembly(int token, YYSTYPE token_value){
-
-  if (token==NUM){
-
+  if (token==WRITE){
+    struct Entry entry=*(token_value.write.entry_to_write);
+    if (entry.token_type==PROCEDURE && entry.data_type==VOID){
+      yyerror("Cannot write void procedure");
+    }
+    fprintf(yyout,"\t\twrite");
+    if (entry.token_type==VALUE){
+      if (entry.data_type==INT_TYPE)
+        fprintf(yyout,".i\t#%d\n",entry.values.at(0).integer);
+      else if (entry.data_type==REAL_TYPE)
+        fprintf(yyout,".r\t#%f\n",entry.values.at(0).real);
+    } else if (entry.is_array_data_type && entry.current_array_index!=-1){
+      if (entry.data_type==INT_TYPE)
+        fprintf(yyout,".i\t%d\n",entry.addresses.at(entry.current_array_index));
+      else if (entry.data_type==REAL_TYPE)
+        fprintf(yyout,".r\t%d\n",entry.addresses.at(entry.current_array_index));
+    } else {
+      if (entry.data_type==INT_TYPE)
+        fprintf(yyout,".i\t%d\n",entry.addresses.at(0));
+      else if (entry.data_type==REAL_TYPE)
+        fprintf(yyout,".r\t%d\n",entry.addresses.at(0));
+    }
+  } else if(token==READ){
+      struct Entry entry=*(token_value.read.entry_to_read);
+      if (entry.token_type==VALUE || entry.token_type==PROCEDURE && entry.data_type==VOID ){
+        yyerror("Cannot read value or void procedure.");
+      }
+      fprintf(yyout,"\t\tread");
+      if (entry.is_array_data_type && entry.current_array_index!=-1){
+        if (entry.data_type==INT_TYPE)
+          fprintf(yyout,".i\t%d\n",entry.addresses.at(entry.current_array_index));
+        else if (entry.data_type==REAL_TYPE)
+          fprintf(yyout,".r\t%d\n",entry.addresses.at(entry.current_array_index));
+      } else {
+        if (entry.data_type==INT_TYPE)
+          fprintf(yyout,".i\t%d\n",entry.addresses.at(0));
+        else if (entry.data_type==REAL_TYPE)
+          fprintf(yyout,".r\t%d\n",entry.addresses.at(0));
+      }
   }else if (token==MOV){
     vector<int> assigned_entry_indexes=*(token_value.mov.assigned_entry_indexes);
       if (token_value.mov.assign_type==CONSTANT_ASSIGN){
@@ -1218,9 +1310,9 @@ void print_assembly(int token, YYSTYPE token_value){
     }else
       fprintf(yyout,"%d, ", token_value.jl.entry2->addresses.at(0));
     if (local_scope){
-      fprintf(yyout,"#%s%d\n",entries_list.at(current_procedure_index).name.c_str(),current_block);
+      fprintf(yyout,"#%s%d\n",entries_list.at(current_procedure_index).name.c_str(),next_jl_block);
     } else
-      fprintf(yyout,"#lab%d\n",current_block);
+      fprintf(yyout,"#lab%d\n",next_jl_block);
   }else if (token==JLR){
     if(token_value.jl.entry1->token_type==VALUE){
       fprintf(yyout,"\t\tjl.r\t#%f, ", token_value.jl.entry1->values.at(0).real);
@@ -1231,9 +1323,9 @@ void print_assembly(int token, YYSTYPE token_value){
     }else
       fprintf(yyout,"%d, ", token_value.jl.entry2->addresses.at(0));
     if (local_scope){
-      fprintf(yyout,"#%s%d\n",entries_list.at(current_procedure_index).name.c_str(),current_block);
+      fprintf(yyout,"#%s%d\n",entries_list.at(current_procedure_index).name.c_str(),next_jl_block);
     } else
-      fprintf(yyout,"#lab%d\n",current_block);
+      fprintf(yyout,"#lab%d\n",next_jl_block);
   }else if (token==JER){
     if(token_value.je.entry1->token_type==VALUE){
       fprintf(yyout,"\t\tje.r\t#%f, ", token_value.je.entry1->values.at(0).real);
@@ -1244,9 +1336,9 @@ void print_assembly(int token, YYSTYPE token_value){
     }else
       fprintf(yyout,"%d, ", token_value.je.entry2->addresses.at(0));
     if (local_scope){
-      fprintf(yyout,"#%s%d\n",entries_list.at(current_procedure_index).name.c_str(),current_block);
+      fprintf(yyout,"#%s%d\n",entries_list.at(current_procedure_index).name.c_str(),next_else_block);
     } else
-      fprintf(yyout,"#lab%d\n",current_block);
+      fprintf(yyout,"#lab%d\n",next_else_block);
   }else if (token==JEI){
     if(token_value.je.entry1->token_type==VALUE){
       fprintf(yyout,"\t\tje.i\t#%d, ", token_value.je.entry1->values.at(0).integer);
@@ -1257,14 +1349,14 @@ void print_assembly(int token, YYSTYPE token_value){
     }else
       fprintf(yyout,"%d, ", token_value.je.entry2->addresses.at(0));
     if (local_scope){
-      fprintf(yyout,"#%s%d\n",entries_list.at(current_procedure_index).name.c_str(),current_block);
+      fprintf(yyout,"#%s%d\n",entries_list.at(current_procedure_index).name.c_str(),next_else_block);
     } else
-      fprintf(yyout,"#lab%d\n",current_block);
+      fprintf(yyout,"#lab%d\n",next_else_block);
   }else if(token==JUMPI){
     if (local_scope)
-      fprintf(yyout,"\t\tjump.i\t#%s%d\n",entries_list.at(current_procedure_index).name.c_str(),current_block);
+      fprintf(yyout,"\t\tjump.i\t#%s%d\n",entries_list.at(current_procedure_index).name.c_str(),next_jump_block);
     else
-      fprintf(yyout,"\t\tjump.i\t#lab%d\n",current_block);
+      fprintf(yyout,"\t\tjump.i\t#lab%d\n",next_jump_block);
   }else if (token==INT_TO_REAL){
     if (token_value.int_to_real.entry_to_convert->token_type==VALUE)
       fprintf(yyout, "\t\tinttoreal.i\t%d, #%d\n",token_value.int_to_real.converted_entry->addresses.at(0),token_value.int_to_real.entry_to_convert->values.at(0).integer);
@@ -1515,7 +1607,6 @@ void close_pascal_file(){
 
 void yyerror(char const * s){
   printf("Error: %s\n",s);
-  throw invalid_argument(s);
 }
 
 struct Entry keywords_dictionary[]={
