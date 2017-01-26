@@ -698,18 +698,19 @@ variable: ID	{
                                       case PROCEDURE:
                                       case ARGUMENT:
                                       case TEMPORARY_VARIABLE:
-                                      if (array_index.is_array_data_type)
+                                      if (array_index.is_array_data_type){
                                         if (array_index.values.empty())
                                           yyerror("Variable is not initialized");
-                                        if (array_index.values.at(0).integer<0 || array_index.values.at(0).integer>$<entry->last_index>$)
+                                        if (array_index.values.at(0).integer<0 || array_index.values.at(0).integer>$$->last_index)
                                           yyerror("Array out of bounds.");
                                         $$->current_array_index=array_index.values.at(0).integer;
                                         break;
+                                      }
                                       case VALUE:
-                                        if (array_index.values.at(0).integer<0 || array_index.values.at(0).integer>$<entry->last_index>$)
+                                        if (array_index.values.at(0).integer<0 || array_index.values.at(0).integer>$$->last_index)
                                           yyerror("Array out of bounds.");
                                         $$->current_array_index=array_index.values.at(0).integer;
-                                        break;
+                                        break;                                    
                                     }
 									               }
 ;
@@ -1607,6 +1608,7 @@ void close_pascal_file(){
 
 void yyerror(char const * s){
   printf("Error: %s\n",s);
+  throw invalid_argument(s);
 }
 
 struct Entry keywords_dictionary[]={

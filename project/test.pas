@@ -21,14 +21,14 @@ p
 end;
 begin
 p;
-read(someVar,otherVar,thirdVar[2]);
+read(someVar,otherVar,fifthVar[2]);
 someVar:=0.2;
 otherVar:=2+3.1;
 fifthVar[5]:=fifthVar[2];
 someVar:=f(someVar,otherVar,thirdVar);
 sixthVar:=fifthVar;
 if (someVar>otherVar) then someVar:=3
-else if ((someVar=otherVar) and (secondVar=0)) then write(10) else write(someVar);
+else if ((someVar=otherVar) and (secondVar=0)) then write(10,fifthVar,thirdVar) else write(someVar);
 while someVar>otherVar do
 begin
 someVar:=someVar+3;

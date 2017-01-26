@@ -25,7 +25,7 @@ lab0:
 		call	#p
 		read.i	8
 		read.i	12
-		read.r	20
+		read.i	36
 		realtoint.r	344, #0.200000
 		mov.i	8, 344
 		realtoint.r	348, #3.100000
@@ -91,6 +91,8 @@ lab12:
 lab13:
 		je.i	440, #0, #lab14
 		write.i	#10
+		write.i	28
+		write.r	20
 lab14:
 		write.i	8
 lab15:
