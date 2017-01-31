@@ -24,7 +24,8 @@ p;
 read(someVar,otherVar,fifthVar[2]);
 someVar:=0.2;
 otherVar:=2+3.1;
-fifthVar[5]:=fifthVar[2];
+sixthVar:=6;
+fifthVar[5]:=3;
 someVar:=f(someVar,otherVar,thirdVar);
 sixthVar:=fifthVar;
 if (someVar>otherVar) then someVar:=3
@@ -32,7 +33,7 @@ else if ((someVar=otherVar) and (secondVar=0)) then write(10,fifthVar,thirdVar) 
 while someVar>otherVar do
 begin
 someVar:=someVar+3;
-while (someVar<>fifthVar[1]) do someVar:=someVar-3;
+while (1) do someVar:=someVar-3;
 otherVar:=thirdVar
 end;
 p(10.2,5.4,2)
